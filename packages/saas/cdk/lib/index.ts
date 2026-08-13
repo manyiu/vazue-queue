@@ -5,10 +5,13 @@ import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as firehose from 'aws-cdk-lib/aws-kinesisfirehose';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { VazueQueue, type VazueQueueProps } from '@vazue/queue-cdk';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface DomainHosts {
   marketing: string;
@@ -64,6 +67,21 @@ export class VazueSaaSPlatform extends Construct {
       eventBusName: `vazue-usage-${this.domain.env}`,
     });
 
+    const dataFns = [
+      this.queue.dataPlane.enrollFn,
+      this.queue.dataPlane.statusFn,
+      this.queue.dataPlane.admitFn,
+      this.queue.dataPlane.reaperFn,
+    ];
+    for (const fn of dataFns) {
+      fn.addEnvironment('VAZUE_DEPLOYMENT_PROFILE', 'saas');
+      fn.addEnvironment('USAGE_BUS_NAME', this.usageBus.eventBusName);
+      this.usageBus.grantPutEventsTo(fn);
+    }
+    if (this.queue.controlPlane) {
+      this.queue.controlPlane.adminFn.addEnvironment('VAZUE_DEPLOYMENT_PROFILE', 'saas');
+    }
+
     const archive = new s3.Bucket(this, 'UsageArchive', {
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -87,22 +105,37 @@ export class VazueSaaSPlatform extends Construct {
       },
     });
 
-    const stripeSync = new lambda.Function(this, 'StripeMeterSync', {
-      runtime: lambda.Runtime.NODEJS_24_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromInline(`
-exports.handler = async (event) => {
-  // Commercial: map EventBridge usage → Stripe Billing Meter Events via REST.
-  console.log(JSON.stringify({ received: event && event['detail-type'] }));
-  return { ok: true };
-};
-`),
-      timeout: cdk.Duration.seconds(30),
-      environment: {
-        STRIPE_SECRET_ARN: process.env.STRIPE_SECRET_ARN ?? '',
-        USAGE_BUS_NAME: this.usageBus.eventBusName,
-      },
-    });
+    const syncEntry = join(
+      dirname(fileURLToPath(import.meta.url)),
+      '..',
+      'lambda',
+      'stripe-meter-sync',
+      'index.js',
+    );
+
+    const stripeEnv = {
+      STRIPE_SECRET_ARN: process.env.STRIPE_SECRET_ARN ?? '',
+      USAGE_BUS_NAME: this.usageBus.eventBusName,
+      STRIPE_DRY_RUN: process.env.STRIPE_DRY_RUN ?? '0',
+    };
+
+    const stripeSync = existsSync(syncEntry)
+      ? new NodejsFunction(this, 'StripeMeterSync', {
+          entry: syncEntry,
+          handler: 'handler',
+          runtime: lambda.Runtime.NODEJS_24_X,
+          timeout: cdk.Duration.seconds(30),
+          environment: stripeEnv,
+        })
+      : new lambda.Function(this, 'StripeMeterSync', {
+          runtime: lambda.Runtime.NODEJS_24_X,
+          handler: 'index.handler',
+          code: lambda.Code.fromInline(
+            'exports.handler=async()=>({ok:true,note:"stripe-meter-sync missing"});',
+          ),
+          timeout: cdk.Duration.seconds(30),
+          environment: stripeEnv,
+        });
 
     new events.Rule(this, 'UsageToStripe', {
       eventBus: this.usageBus,

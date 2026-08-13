@@ -3,6 +3,8 @@
  * Commercial SaaS only — do not publish this package.
  */
 
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
 export interface StripeClientOptions {
   apiKey: string;
   apiVersion?: string;
@@ -46,21 +48,34 @@ export class StripeClient {
     return this.postForm('/v1/billing/meter_events', body, params.identifier);
   }
 
-  verifyWebhookSignature(payload: string, header: string, secret: string, toleranceSec = 300): boolean {
-    // Minimal HMAC check placeholder — production should parse t= and v1=
+  verifyWebhookSignature(
+    payload: string,
+    header: string,
+    secret: string,
+    toleranceSec = 300,
+    nowSec = Math.floor(Date.now() / 1000),
+  ): boolean {
     const parts = Object.fromEntries(
       header.split(',').map((p) => {
-        const [k, v] = p.split('=');
-        return [k.trim(), v];
+        const [k, ...rest] = p.split('=');
+        return [k.trim(), rest.join('=')];
       }),
     );
     const timestamp = parts.t;
     const signature = parts.v1;
     if (!timestamp || !signature) return false;
-    const age = Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp));
-    if (age > toleranceSec) return false;
-    // Node crypto would be used in runtime; keep pure check structure here.
-    return Boolean(secret && payload && signature);
+    const age = Math.abs(nowSec - Number(timestamp));
+    if (Number.isNaN(age) || age > toleranceSec) return false;
+    const expected = createHmac('sha256', secret)
+      .update(`${timestamp}.${payload}`)
+      .digest('hex');
+    try {
+      const a = Buffer.from(expected, 'utf8');
+      const b = Buffer.from(signature, 'utf8');
+      return a.length === b.length && timingSafeEqual(a, b);
+    } catch {
+      return false;
+    }
   }
 
   private async postForm(path: string, params: Record<string, unknown>, idempotencyKey?: string) {

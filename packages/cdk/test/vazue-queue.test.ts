@@ -105,3 +105,24 @@ describe('presets', () => {
     expect(resolveFeatures('full').edgeConnector).toBe(true);
   });
 });
+
+describe('SaaS profile env', () => {
+  it('sets VAZUE_DEPLOYMENT_PROFILE=saas when stripe feature enabled', () => {
+    const app = new App();
+    const stack = new Stack(app, 'SaasProfile');
+    new VazueQueue(stack, 'Queue', {
+      domainName: 'queue.example.com',
+      preset: 'full',
+      awsRegion: 'us-east-1',
+      features: { stripe: true },
+    });
+    const template = Template.fromStack(stack);
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: {
+        Variables: Match.objectLike({
+          VAZUE_DEPLOYMENT_PROFILE: 'saas',
+        }),
+      },
+    });
+  });
+});

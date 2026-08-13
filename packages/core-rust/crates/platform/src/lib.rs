@@ -105,6 +105,41 @@ impl Capabilities {
             },
         }
     }
+
+    pub fn from_env() -> Self {
+        match DeploymentProfile::from_env() {
+            DeploymentProfile::Saas => Self::saas_free(),
+            DeploymentProfile::Oss => Self::oss_full(),
+        }
+    }
+
+    /// Returns an error message when the desired settings exceed plan limits (SaaS only).
+    pub fn check_queue_limits(
+        &self,
+        counter_shards: Option<u32>,
+        throughput_per_minute: Option<u32>,
+    ) -> Result<(), String> {
+        if !self.deployment.enforce_plan_limits() {
+            return Ok(());
+        }
+        if let Some(shards) = counter_shards {
+            if shards > self.limits.max_counter_shards {
+                return Err(format!(
+                    "counter_shards {} exceeds plan max {}",
+                    shards, self.limits.max_counter_shards
+                ));
+            }
+        }
+        if let Some(tpm) = throughput_per_minute {
+            if tpm > self.limits.max_throughput_per_minute {
+                return Err(format!(
+                    "throughput_per_minute {} exceeds plan max {}",
+                    tpm, self.limits.max_throughput_per_minute
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Resolve tenant id from hostname like `{tenant}.wait.queue.vazue.com`.
@@ -129,5 +164,19 @@ mod tests {
             tenant_from_host("acme.wait.queue.vazue.com"),
             Some("acme".into())
         );
+    }
+
+    #[test]
+    fn saas_enforces_limits() {
+        let caps = Capabilities::saas_free();
+        assert!(caps.check_queue_limits(Some(8), Some(200)).is_ok());
+        assert!(caps.check_queue_limits(Some(9), None).is_err());
+        assert!(caps.check_queue_limits(None, Some(201)).is_err());
+    }
+
+    #[test]
+    fn oss_skips_limits() {
+        let caps = Capabilities::oss_full();
+        assert!(caps.check_queue_limits(Some(10_000), Some(10_000)).is_ok());
     }
 }

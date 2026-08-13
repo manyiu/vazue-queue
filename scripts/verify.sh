@@ -26,6 +26,8 @@ pnpm --filter @vazue/queue-cdk test
 pnpm --filter @vazue/queue-sdk test
 pnpm --filter create-vazue-queue test
 pnpm --filter @vazue/saas-plan-limits test
+pnpm --filter @vazue/saas-billing test
+pnpm --filter @vazue/saas-cdk test
 pnpm --filter @vazue/queue-edge-cloudfront test
 
 echo "verify OK"

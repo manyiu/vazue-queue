@@ -74,8 +74,8 @@ export class QueueDataPlane extends Construct {
         ? lambda.Architecture.ARM_64
         : lambda.Architecture.X86_64;
 
-    const commonEnv: Record<string, string> = {
-      VAZUE_DEPLOYMENT_PROFILE: 'oss',
+    let commonEnv: Record<string, string> = {
+      VAZUE_DEPLOYMENT_PROFILE: config.features.stripe ? 'saas' : 'oss',
       TENANT_ID: 'default',
       SIGNING_SECRET_ARN: this.signingSecret.secretArn,
       COUNTER_SHARDS: String(config.queue.counterShards),

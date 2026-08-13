@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build Rust Lambda zips into packages/cdk/assets/lambda/ for @vazue/queue-cdk.
 # Set REQUIRE_ARTIFACTS=1 to fail if any expected zip is missing (CI release path).
+# On macOS/non-Linux hosts, arm64 Lambda builds need zig (`brew install zig`).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/packages/cdk/assets/lambda"
@@ -9,7 +10,7 @@ REQUIRE_ARTIFACTS="${REQUIRE_ARTIFACTS:-0}"
 TARGETS=(enroll status admit serving-reaper enroll-worker admin-api)
 
 if ! command -v cargo-lambda >/dev/null 2>&1; then
-  echo "cargo-lambda not installed"
+  echo "cargo-lambda not installed (pip install cargo-lambda / cargo install cargo-lambda)"
   if [[ "$REQUIRE_ARTIFACTS" == "1" ]]; then
     echo "ERROR: REQUIRE_ARTIFACTS=1 but cargo-lambda is missing"
     exit 1
@@ -23,6 +24,24 @@ fi
 if ! command -v zip >/dev/null 2>&1; then
   echo "zip is required to package bootstrap binaries"
   exit 1
+fi
+
+# cargo-lambda --arm64 cross-compiles to aarch64-unknown-linux-gnu via zig on non-Linux.
+NEED_ZIG=0
+if [[ "$(uname -s)" != "Linux" ]] || [[ "$(uname -m)" != "aarch64" && "$(uname -m)" != "arm64" ]]; then
+  NEED_ZIG=1
+fi
+if [[ "$NEED_ZIG" == "1" ]] && ! command -v zig >/dev/null 2>&1; then
+  echo "zig not found — required to cross-compile arm64 Lambda binaries on this host"
+  echo "Install: brew install zig   (or https://ziglang.org)"
+  if [[ "$REQUIRE_ARTIFACTS" == "1" ]]; then
+    echo "ERROR: REQUIRE_ARTIFACTS=1 but zig is missing"
+    exit 1
+  fi
+  for bin in "${TARGETS[@]}"; do
+    echo "zig-missing" > "$OUT/$bin.MISSING"
+  done
+  exit 0
 fi
 
 cd "$ROOT/packages/core-rust"

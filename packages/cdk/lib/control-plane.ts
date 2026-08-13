@@ -41,7 +41,7 @@ export class QueueControlPlane extends Construct {
           : lambda.Architecture.X86_64,
       timeout: cdk.Duration.seconds(15),
       environment: {
-        VAZUE_DEPLOYMENT_PROFILE: 'oss',
+        VAZUE_DEPLOYMENT_PROFILE: config.features.stripe ? 'saas' : 'oss',
         TENANT_ID: 'default',
         ROOMS_TABLE: tables.Rooms.tableName,
         EVENTS_TABLE: tables.Events.tableName,

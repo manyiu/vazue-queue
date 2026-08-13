@@ -12,7 +12,6 @@ use axum::middleware;
 use axum::routing::{get, post, put};
 use axum::Router;
 use lambda_http::{run, Error};
-use platform::Capabilities;
 use tower_http::cors::CorsLayer;
 
 #[tokio::main]
@@ -35,7 +34,7 @@ async fn main() -> Result<(), Error> {
     let state = AdminState {
         store,
         tenant_id,
-        capabilities: Capabilities::oss_full(),
+        capabilities: platform::Capabilities::from_env(),
     };
 
     let app = Router::new()

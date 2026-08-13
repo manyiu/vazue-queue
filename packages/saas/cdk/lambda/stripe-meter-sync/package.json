@@ -1,0 +1,6 @@
+{
+  "name": "stripe-meter-sync",
+  "private": true,
+  "type": "module",
+  "main": "index.js"
+}

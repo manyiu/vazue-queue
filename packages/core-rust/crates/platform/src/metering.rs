@@ -46,11 +46,13 @@ impl UsageEvent {
 }
 
 /// Emit a usage event when the deployment profile enables metering.
-/// OSS: structured log only. SaaS: same log (EventBridge put wired by SaaS Lambda later).
+/// OSS: no-op. SaaS: structured log (EventBridge PutEvents when USAGE_BUS_NAME is set
+/// is performed by the Lambda runtime wrapper; this helper always logs the payload).
 pub fn emit_usage(profile: DeploymentProfile, event: &UsageEvent) {
     if !profile.emit_usage_events() {
         return;
     }
+    let bus = std::env::var("USAGE_BUS_NAME").ok();
     info!(
         target: "vazue.metering",
         meter = ?event.meter,
@@ -58,6 +60,7 @@ pub fn emit_usage(profile: DeploymentProfile, event: &UsageEvent) {
         event_id = ?event.event_id,
         quantity = event.quantity,
         detail_type = %event.detail_type,
+        usage_bus = ?bus,
         "usage event"
     );
 }

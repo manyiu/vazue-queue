@@ -40,7 +40,7 @@ scripts/build-waiting-room.sh
 scripts/build-admin-portal.sh
 ```
 
-Without Lambda zips, CDK still synthesizes using Node 501 placeholders so tests pass; real deploys need the zips.
+Without Lambda zips, CDK still synthesizes using Node 501 placeholders so tests pass; real deploys need the zips. On macOS, install **zig** (`brew install zig`) before `scripts/build-lambda-assets.sh`.
 
 ## Frontend assets for deploy
 

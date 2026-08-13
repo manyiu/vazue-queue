@@ -21,6 +21,10 @@
     "@vazue/queue-cdk": "workspace:*",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
-    "@types/node": "^24.2.0"
+    "@types/node": "^24.2.0",
+    "esbuild": "^0.25.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.758.0"
   }
 }
