@@ -17,6 +17,7 @@ echo "==> cargo test"
 echo "==> pnpm package tests"
 pnpm --filter @vazue/queue-cdk test
 pnpm --filter @vazue/queue-sdk test
+pnpm --filter create-vazue-queue test
 pnpm --filter @vazue/saas-plan-limits test
 pnpm --filter @vazue/queue-edge-cloudfront test
 

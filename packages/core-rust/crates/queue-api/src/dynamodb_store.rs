@@ -343,19 +343,22 @@ impl QueueStore for DynamoDbStore {
             .clone()
             .unwrap_or_else(|| Uuid::new_v4().to_string());
 
-        // Idempotent lookup via scan of sessionId within event (MVP; prefer GSI in production).
+        // Idempotent lookup via GSI bySession when present; fall back to query.
         let existing = self
             .client
             .query()
             .table_name(&self.visitors_table)
-            .key_condition_expression("eventId = :e")
+            .index_name("bySession")
+            .key_condition_expression("eventId = :e AND sessionId = :s")
             .expression_attribute_values(":e", Self::av_s(&req.event_id))
+            .expression_attribute_values(":s", Self::av_s(&session_id))
+            .limit(1)
             .send()
-            .await
-            .map_err(|e| StoreError::Message(e.to_string()))?;
-        if let Some(items) = existing.items {
-            for item in items {
-                if Self::get_s(&item, "sessionId").as_deref() == Some(session_id.as_str()) {
+            .await;
+
+        if let Ok(out) = existing {
+            if let Some(items) = out.items {
+                if let Some(item) = items.into_iter().next() {
                     let v = Self::visitor_from_item(&item)?;
                     return Ok(EnrollResponse {
                         request_id: v.request_id,
@@ -363,6 +366,30 @@ impl QueueStore for DynamoDbStore {
                         position: v.position,
                         status: v.status,
                     });
+                }
+            }
+        } else {
+            // Index may be missing in local/dev — fall back to event query.
+            let existing = self
+                .client
+                .query()
+                .table_name(&self.visitors_table)
+                .key_condition_expression("eventId = :e")
+                .expression_attribute_values(":e", Self::av_s(&req.event_id))
+                .send()
+                .await
+                .map_err(|e| StoreError::Message(e.to_string()))?;
+            if let Some(items) = existing.items {
+                for item in items {
+                    if Self::get_s(&item, "sessionId").as_deref() == Some(session_id.as_str()) {
+                        let v = Self::visitor_from_item(&item)?;
+                        return Ok(EnrollResponse {
+                            request_id: v.request_id,
+                            session_id: v.session_id,
+                            position: v.position,
+                            status: v.status,
+                        });
+                    }
                 }
             }
         }
@@ -432,9 +459,11 @@ impl QueueStore for DynamoDbStore {
             .await
     }
 
-    async fn reaper_tick(&self, _tenant_id: &str, event_id: &str) -> Result<u64, StoreError> {
-        // Advance serving by configured throughput slice when front visitors expire.
-        let advanced = self.add_counter(event_id, "serving", 1).await?;
-        Ok(advanced)
+    async fn reaper_tick(&self, tenant_id: &str, event_id: &str) -> Result<u64, StoreError> {
+        let event = self.get_event(tenant_id, event_id).await?;
+        // Advance serving by one minute of configured throughput (EventBridge rate = 1 min).
+        let slice = u64::from(event.throughput_per_minute.max(1));
+        let advanced = self.add_counter(event_id, "serving", slice as i64).await?;
+        Ok(slice.min(advanced))
     }
 }

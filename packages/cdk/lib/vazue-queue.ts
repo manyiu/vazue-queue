@@ -1,20 +1,27 @@
 import * as cdk from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { resolveConfig, type VazueQueueConfig } from './config.js';
 import { QueueDataPlane } from './data-plane.js';
+import { QueueControlPlane } from './control-plane.js';
 
 export interface VazueQueueProps extends VazueQueueConfig {}
 
 export class VazueQueue extends Construct {
   public readonly dataPlane: QueueDataPlane;
+  public readonly controlPlane?: QueueControlPlane;
   public readonly waitingRoomBucket?: s3.Bucket;
   public readonly distribution?: cloudfront.Distribution;
   public readonly userPool?: cognito.UserPool;
+  public readonly userPoolClient?: cognito.UserPoolClient;
 
   constructor(scope: Construct, id: string, props: VazueQueueProps) {
     super(scope, id);
@@ -87,6 +94,24 @@ export class VazueQueue extends Construct {
         webAclId,
       });
 
+      const waitingRoomDist = join(
+        dirname(fileURLToPath(import.meta.url)),
+        '..',
+        '..',
+        '..',
+        'apps',
+        'waiting-room',
+        'dist',
+      );
+      if (existsSync(waitingRoomDist)) {
+        new s3deploy.BucketDeployment(this, 'WaitingRoomDeploy', {
+          sources: [s3deploy.Source.asset(waitingRoomDist)],
+          destinationBucket: this.waitingRoomBucket,
+          distribution: this.distribution,
+          distributionPaths: ['/*'],
+        });
+      }
+
       new cdk.CfnOutput(this, 'WaitingRoomUrl', {
         value: `https://${this.distribution.distributionDomainName}`,
       });
@@ -98,10 +123,20 @@ export class VazueQueue extends Construct {
         signInAliases: { email: true },
         removalPolicy: removal,
       });
-      this.userPool.addClient('AdminSpaClient', {
+      this.userPoolClient = this.userPool.addClient('AdminSpaClient', {
         authFlows: { userSrp: true },
       });
       new cdk.CfnOutput(this, 'AdminUserPoolId', { value: this.userPool.userPoolId });
+
+      if (config.features.adminApi) {
+        this.controlPlane = new QueueControlPlane(this, 'ControlPlane', {
+          config,
+          userPool: this.userPool,
+          userPoolClient: this.userPoolClient,
+          tables: this.dataPlane.tables,
+          signingSecret: this.dataPlane.signingSecret,
+        });
+      }
     }
 
     if (config.tags) {

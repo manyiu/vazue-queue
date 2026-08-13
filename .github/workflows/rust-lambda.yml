@@ -1,20 +1,30 @@
 name: Rust Lambda CI
 on:
   push:
-    paths: ['packages/core-rust/**']
+    paths: ['packages/core-rust/**', 'scripts/build-lambda-assets.sh']
   pull_request:
-    paths: ['packages/core-rust/**']
+    paths: ['packages/core-rust/**', 'scripts/build-lambda-assets.sh']
+  workflow_dispatch:
 jobs:
   cargo-lambda:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
       - name: Install cargo-lambda
         run: pip install cargo-lambda
-      - name: Build release arm64 (best-effort)
+      - name: Unit tests
         working-directory: packages/core-rust
+        run: cargo test --workspace
+      - name: Build Lambda assets (best-effort)
         run: |
-          cargo test --workspace
-          # Full cargo-lambda zig build enabled once toolchain cached in runners
-          echo "cargo-lambda build --release --arm64 reserved for release pipeline"
+          chmod +x scripts/build-lambda-assets.sh
+          scripts/build-lambda-assets.sh || true
+      - name: Upload artifacts when present
+        uses: actions/upload-artifact@v4
+        with:
+          name: vazue-lambda-zips
+          path: packages/cdk/assets/lambda/*.zip
+          if-no-files-found: warn

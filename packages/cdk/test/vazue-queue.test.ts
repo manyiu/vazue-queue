@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { App, Stack } from 'aws-cdk-lib';
-import { Template } from 'aws-cdk-lib/assertions';
+import { Match, Template } from 'aws-cdk-lib/assertions';
 import { VazueQueue } from '../lib/vazue-queue.js';
 import { resolveConfig, validateConfig, loadAndMergeConfig } from '../lib/config.js';
 import { resolveFeatures } from '../lib/presets.js';
@@ -34,10 +34,25 @@ describe('VazueQueue presets', () => {
     template.resourceCountIs('AWS::DynamoDB::Table', 7);
   });
 
-  it('full includes Cognito and WAF', () => {
+  it('full includes Cognito, WAF, and admin HTTP API', () => {
     const template = synthPreset('full');
     template.resourceCountIs('AWS::Cognito::UserPool', 1);
     template.resourceCountIs('AWS::WAFv2::WebACL', 1);
+    template.resourceCountIs('AWS::ApiGatewayV2::Api', 2);
+  });
+
+  it('schedules serving reaper', () => {
+    const template = synthPreset('minimal');
+    template.resourceCountIs('AWS::Events::Rule', 1);
+  });
+
+  it('visitors table has session GSI', () => {
+    const template = synthPreset('minimal');
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      GlobalSecondaryIndexes: Match.arrayWith([
+        Match.objectLike({ IndexName: 'bySession' }),
+      ]),
+    });
   });
 
   it('enroll buffer creates SQS by default', () => {

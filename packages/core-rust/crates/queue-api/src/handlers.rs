@@ -25,6 +25,20 @@ pub async fn enroll(
     Json(mut body): Json<EnrollRequest>,
 ) -> Result<(StatusCode, Json<EnrollResponse>), (StatusCode, Json<Value>)> {
     body.event_id = event_id;
+    let mode = std::env::var("BOT_PROTECTION_MODE").unwrap_or_else(|_| "off".into());
+    if mode == "challenge_always" || mode == "challenge_suspicious" {
+        let token = body.turnstile_token.as_deref().unwrap_or("");
+        let secret = std::env::var("TURNSTILE_SECRET").unwrap_or_else(|_| "bypass".into());
+        let ok = platform::verify_turnstile(&secret, token, None, true)
+            .await
+            .map_err(|e| (StatusCode::BAD_GATEWAY, Json(json!({ "error": e }))))?;
+        if !ok {
+            return Err((
+                StatusCode::CONFLICT,
+                Json(json!({ "error": "captcha failed" })),
+            ));
+        }
+    }
     match state
         .store
         .enroll(&state.tenant_id, body, &state.keys, state.use_rsa)

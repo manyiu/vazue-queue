@@ -1,8 +1,10 @@
-//! Shared Lambda bootstrap for enroll / status / admit / reaper.
+//! Shared Lambda bootstrap for enroll / status / admit / reaper / enroll-worker.
 
 use std::sync::Arc;
 
 use aws_config::BehaviorVersion;
+use aws_lambda_events::event::sqs::SqsEvent;
+use aws_sdk_dynamodb::types::AttributeValue;
 use lambda_http::{run, service_fn, Body, Error, Request, RequestExt, Response};
 use queue_kernel::JwtKeys;
 use serde_json::json;
@@ -86,7 +88,34 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
             invite_code: None,
             turnstile_token: None,
         });
-    body.event_id = event_id;
+    body.event_id = event_id.clone();
+
+    if let Err(e) = maybe_verify_turnstile(&body).await {
+        return json_response(409, json!({ "error": e }));
+    }
+
+    if state.enroll_via_sqs {
+        if let Ok(queue_url) = std::env::var("ENROLL_QUEUE_URL") {
+            let conf = aws_config::load_defaults(BehaviorVersion::latest()).await;
+            let sqs = aws_sdk_sqs::Client::new(&conf);
+            let payload = serde_json::to_string(&body).unwrap_or_default();
+            sqs.send_message()
+                .queue_url(queue_url)
+                .message_body(payload)
+                .send()
+                .await
+                .map_err(|e| Error::from(e.to_string()))?;
+            return json_response(
+                202,
+                json!({
+                    "status": "accepted",
+                    "event_id": event_id,
+                    "session_id": body.session_id,
+                }),
+            );
+        }
+    }
+
     match state
         .store
         .enroll(&state.tenant_id, body, &state.keys, state.use_rsa)
@@ -95,6 +124,21 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
         Ok(resp) => json_response(201, resp),
         Err(e) => json_response(map_status(&e), json!({ "error": e.to_string() })),
     }
+}
+
+async fn maybe_verify_turnstile(body: &EnrollRequest) -> Result<(), String> {
+    let mode = std::env::var("BOT_PROTECTION_MODE").unwrap_or_else(|_| "off".into());
+    if mode != "challenge_always" && mode != "challenge_suspicious" {
+        return Ok(());
+    }
+    let token = body.turnstile_token.as_deref().unwrap_or("");
+    let secret = std::env::var("TURNSTILE_SECRET").unwrap_or_else(|_| "bypass".into());
+    let local = std::env::var("VAZUE_LOCAL").ok().as_deref() == Some("1") || secret == "bypass";
+    let ok = platform::verify_turnstile(&secret, token, None, local).await?;
+    if !ok {
+        return Err("captcha failed".into());
+    }
+    Ok(())
 }
 
 pub async fn run_status() -> Result<(), Error> {
@@ -174,21 +218,66 @@ async fn handle_admit(state: Arc<AppState>, req: Request) -> Result<Response<Bod
     }
 }
 
-pub async fn run_reaper() -> Result<(), Error> {
+pub async fn run_reaper() -> Result<(), lambda_runtime::Error> {
     init_tracing();
-    let state = build_aws_state().await.map_err(Error::from)?;
-    let event_id = std::env::var("EVENT_ID").unwrap_or_default();
-    if event_id.is_empty() {
-        tracing::warn!("EVENT_ID not set; reaper no-op");
-        return Ok(());
-    }
-    let advanced = state
-        .store
-        .reaper_tick(&state.tenant_id, &event_id)
+    let state = build_aws_state()
         .await
-        .map_err(|e| Error::from(e.to_string()))?;
-    tracing::info!(advanced, "serving reaper tick");
+        .map_err(lambda_runtime::Error::from)?;
+    let conf = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let ddb = aws_sdk_dynamodb::Client::new(&conf);
+    let events_table = std::env::var("EVENTS_TABLE").unwrap_or_else(|_| "Events".into());
+    let tenant_id = state.tenant_id.clone();
+
+    let scanned = ddb
+        .scan()
+        .table_name(&events_table)
+        .filter_expression("tenantId = :t")
+        .expression_attribute_values(":t", AttributeValue::S(tenant_id.clone()))
+        .send()
+        .await
+        .map_err(|e| lambda_runtime::Error::from(e.to_string()))?;
+
+    let mut total = 0u64;
+    for item in scanned.items.unwrap_or_default() {
+        let Some(event_id) = item.get("eventId").and_then(|v| v.as_s().ok()) else {
+            continue;
+        };
+        match state.store.reaper_tick(&tenant_id, event_id).await {
+            Ok(n) => total += n,
+            Err(e) => tracing::warn!(%event_id, error = %e, "reaper tick failed"),
+        }
+    }
+    tracing::info!(advanced = total, "serving reaper complete");
     Ok(())
+}
+
+pub async fn run_enroll_worker() -> Result<(), lambda_runtime::Error> {
+    init_tracing();
+    let state = Arc::new(
+        build_aws_state()
+            .await
+            .map_err(lambda_runtime::Error::from)?,
+    );
+    lambda_runtime::run(lambda_runtime::service_fn(
+        move |event: lambda_runtime::LambdaEvent<SqsEvent>| {
+            let state = state.clone();
+            async move {
+                for record in event.payload.records {
+                    let body = record.body.unwrap_or_default();
+                    let req: EnrollRequest = serde_json::from_str(&body).map_err(|e| {
+                        lambda_runtime::Error::from(format!("bad enroll message: {e}"))
+                    })?;
+                    state
+                        .store
+                        .enroll(&state.tenant_id, req, &state.keys, state.use_rsa)
+                        .await
+                        .map_err(|e| lambda_runtime::Error::from(e.to_string()))?;
+                }
+                Ok::<(), lambda_runtime::Error>(())
+            }
+        },
+    ))
+    .await
 }
 
 fn path_param(req: &Request, name: &str) -> Option<String> {

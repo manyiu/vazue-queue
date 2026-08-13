@@ -25,6 +25,10 @@ path = "src/bin/admit.rs"
 name = "serving-reaper"
 path = "src/bin/serving-reaper.rs"
 
+[[bin]]
+name = "enroll-worker"
+path = "src/bin/enroll-worker.rs"
+
 [dependencies]
 queue-kernel = { workspace = true }
 platform = { workspace = true }
@@ -43,6 +47,7 @@ aws-sdk-secretsmanager = { workspace = true }
 aws-sdk-sqs = { workspace = true }
 lambda_http = { workspace = true }
 lambda_runtime = { workspace = true }
+aws_lambda_events = "0.16"
 async-trait = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 

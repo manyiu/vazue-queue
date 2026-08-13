@@ -2,6 +2,8 @@
 
 pub mod turnstile;
 
+pub use turnstile::verify_turnstile;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

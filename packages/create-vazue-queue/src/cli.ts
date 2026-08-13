@@ -2,17 +2,9 @@
 import * as p from '@clack/prompts';
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { validateQueueCliConfig, type QueueCliConfig } from './config.js';
 
-type Config = {
-  domainName: string;
-  preset: 'minimal' | 'standard' | 'full';
-  awsRegion: string;
-  dns?: { hostedZoneId?: string; hostedZoneName?: string };
-  queue?: { defaultThroughputPerMinute?: number };
-  security?: {
-    botProtection?: { mode?: string; turnstileSiteKey?: string };
-  };
-};
+type Config = QueueCliConfig;
 
 function parseArgs(argv: string[]) {
   const args = { yes: false, dir: 'my-queue', domain: '', preset: 'standard' as Config['preset'], show: false, validate: false, configOnly: false };
@@ -201,18 +193,11 @@ app.synth();
 }
 
 function validateFile(path: string) {
-  const raw = JSON.parse(readFileSync(path, 'utf8')) as Partial<Config>;
-  if (typeof raw.domainName !== 'string' || raw.domainName.length < 3) {
-    console.error('Invalid config: domainName required (minLength 3)');
-    process.exit(1);
-  }
-  if (
-    raw.preset !== undefined &&
-    raw.preset !== 'minimal' &&
-    raw.preset !== 'standard' &&
-    raw.preset !== 'full'
-  ) {
-    console.error('Invalid config: preset must be minimal|standard|full');
+  const raw = JSON.parse(readFileSync(path, 'utf8'));
+  try {
+    validateQueueCliConfig(raw);
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : String(e));
     process.exit(1);
   }
   console.log('Config valid:', path);

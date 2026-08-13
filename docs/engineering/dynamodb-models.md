@@ -14,7 +14,7 @@ Default region: **us-east-1**. All tables on-demand.
 
 ## GSIs
 
-- Visitors: GSI1 `tenantId` + `sessionId` for idempotent enroll lookup (optional; in-memory uses session_index).
+- Visitors: GSI `bySession` — PK `eventId`, SK `sessionId` for idempotent enroll lookup.
 
 ## Sharding
 

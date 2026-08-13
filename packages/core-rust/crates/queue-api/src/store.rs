@@ -22,6 +22,7 @@ pub enum StoreError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnrollRequest {
+    #[serde(default)]
     pub event_id: String,
     pub session_id: Option<String>,
     pub return_url: Option<String>,
@@ -249,9 +250,9 @@ impl QueueStore for InMemoryStore {
             .lock()
             .map_err(|e| StoreError::Message(e.to_string()))?;
         let ek = Self::event_key(tenant_id, event_id);
+        let event = g.events.get(&ek).cloned().ok_or(StoreError::NotFound)?;
         let now = Utc::now().timestamp();
         let ttl = (self.queue.visitor_record_ttl_hours as i64) * 3600;
-        let mut advanced = 0u64;
         let serving = *g.serving_counter.get(&ek).unwrap_or(&0);
         let mut abandoned = 0u64;
         for v in g.visitors.values_mut() {
@@ -266,12 +267,10 @@ impl QueueStore for InMemoryStore {
                 }
             }
         }
-        if abandoned > 0 {
-            let s = g.serving_counter.entry(ek).or_insert(0);
-            *s += abandoned;
-            advanced = abandoned;
-        }
-        Ok(advanced)
+        let slice = u64::from(event.throughput_per_minute.max(1));
+        let s = g.serving_counter.entry(ek).or_insert(0);
+        *s += slice + abandoned;
+        Ok(slice + abandoned)
     }
 }
 

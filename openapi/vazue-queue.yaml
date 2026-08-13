@@ -190,12 +190,21 @@ components:
       enum: [enrolled, waiting, admitted, expired, blocked]
     Room:
       type: object
+      required: [room_id, name]
       properties:
         room_id: { type: string }
         name: { type: string }
-        theme: { type: object }
+        theme: { type: object, additionalProperties: true }
+        queue:
+          type: object
+          properties:
+            default_throughput_per_minute: { type: integer }
+            counter_shards: { type: integer }
+            token_ttl_seconds: { type: integer }
+            visitor_record_ttl_hours: { type: integer }
     EventConfig:
       type: object
+      required: [event_id, room_id]
       properties:
         event_id: { type: string }
         room_id: { type: string }
@@ -217,10 +226,15 @@ components:
           type: string
           enum: [off, rate_limit_only, challenge_suspicious, challenge_always]
     RoomConfig:
-      type: object
-      description: Mirrors CDK / admin owner config subset
+      $ref: '#/components/schemas/Room'
     EventConfigBlob:
-      type: object
+      $ref: '#/components/schemas/EventConfig'
+  securitySchemes:
+    CognitoJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito access token (admin / management API)
 tags:
   - name: Queue
   - name: Management
