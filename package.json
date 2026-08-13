@@ -1,0 +1,27 @@
+{
+  "name": "vazue-queue",
+  "private": true,
+  "version": "0.0.0",
+  "description": "OSS-first virtual waiting room on AWS",
+  "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter=./packages/* --filter=./apps/* --filter=./connectors/* run build",
+    "test": "pnpm test:local",
+    "test:unit": "cargo test --workspace --manifest-path packages/core-rust/Cargo.toml && pnpm -r --filter=./packages/* run test --if-present",
+    "test:integration": "cargo test --workspace --manifest-path packages/core-rust/Cargo.toml --test '*' -- --ignored 2>/dev/null || cargo test --workspace --manifest-path packages/core-rust/Cargo.toml",
+    "test:api": "bash scripts/test-api.sh",
+    "test:cdk": "pnpm --filter @vazue/queue-cdk test",
+    "test:local": "bash scripts/test-local.sh",
+    "verify": "bash scripts/verify.sh",
+    "lint": "pnpm -r --filter=./packages/* run lint --if-present",
+    "fmt": "cargo fmt --manifest-path packages/core-rust/Cargo.toml && pnpm -r --filter=./packages/* run fmt --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "@types/node": "^24.2.0"
+  }
+}

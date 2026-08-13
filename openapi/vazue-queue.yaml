@@ -1,0 +1,227 @@
+openapi: 3.2.0
+info:
+  title: Vazue Queue API
+  version: 1.0.0
+  description: |
+    Virtual waiting room Queue API and Management API.
+    Admit tokens are returned on GET status when the visitor is admitted.
+  license:
+    name: Apache-2.0
+servers:
+  - url: http://localhost:3000
+    description: Local data plane
+  - url: https://queue.example.com
+    description: OSS self-hosted
+  - url: https://api.queue.vazue.com
+    description: SaaS management (Phase 5)
+paths:
+  /health:
+    get:
+      operationId: health
+      tags: [Ops]
+      responses:
+        '200':
+          description: OK
+  /ready:
+    get:
+      operationId: ready
+      tags: [Ops]
+      responses:
+        '200':
+          description: Ready
+  /v1/capabilities:
+    get:
+      operationId: getCapabilities
+      tags: [Management]
+      responses:
+        '200':
+          description: Deployment capabilities and plan limits
+  /v1/events/{eventId}/enroll:
+    post:
+      operationId: enroll
+      tags: [Queue]
+      parameters:
+        - $ref: '#/components/parameters/eventId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollRequest'
+      responses:
+        '201':
+          description: Enrolled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollResponse'
+        '409':
+          description: Conflict (paused, captcha, invite)
+  /v1/events/{eventId}/status:
+    get:
+      operationId: status
+      tags: [Queue]
+      parameters:
+        - $ref: '#/components/parameters/eventId'
+        - name: request_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status; includes admitToken when admitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+  /v1/events/{eventId}/admit:
+    post:
+      operationId: admit
+      tags: [Queue]
+      description: Optional explicit admit; prefer status when admitted=true
+      parameters:
+        - $ref: '#/components/parameters/eventId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_id]
+              properties:
+                request_id:
+                  type: string
+      responses:
+        '200':
+          description: Admit result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+  /v1/rooms:
+    post:
+      operationId: createRoom
+      tags: [Management]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Room'
+      responses:
+        '201':
+          description: Created
+  /v1/events:
+    get:
+      operationId: listEvents
+      tags: [Management]
+      responses:
+        '200':
+          description: Events
+    post:
+      operationId: createEvent
+      tags: [Management]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventConfig'
+      responses:
+        '201':
+          description: Created
+  /v1/events/{eventId}:
+    put:
+      operationId: updateEvent
+      tags: [Management]
+      parameters:
+        - $ref: '#/components/parameters/eventId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiveOverrides'
+      responses:
+        '200':
+          description: Updated
+components:
+  parameters:
+    eventId:
+      name: eventId
+      in: path
+      required: true
+      schema:
+        type: string
+  schemas:
+    EnrollRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+        return_url:
+          type: string
+          format: uri
+        invite_code:
+          type: string
+        turnstile_token:
+          type: string
+    EnrollResponse:
+      type: object
+      required: [request_id, session_id, position, status]
+      properties:
+        request_id: { type: string }
+        session_id: { type: string }
+        position: { type: integer }
+        status: { $ref: '#/components/schemas/VisitorStatus' }
+    StatusResponse:
+      type: object
+      required: [request_id, position, serving, status, admitted]
+      properties:
+        request_id: { type: string }
+        position: { type: integer }
+        serving: { type: integer }
+        wait_estimate_minutes: { type: number }
+        poll_after_seconds: { type: integer }
+        status: { $ref: '#/components/schemas/VisitorStatus' }
+        admitted: { type: boolean }
+        admit_token: { type: string }
+        return_url: { type: string }
+    VisitorStatus:
+      type: string
+      enum: [enrolled, waiting, admitted, expired, blocked]
+    Room:
+      type: object
+      properties:
+        room_id: { type: string }
+        name: { type: string }
+        theme: { type: object }
+    EventConfig:
+      type: object
+      properties:
+        event_id: { type: string }
+        room_id: { type: string }
+        throughput_per_minute: { type: integer }
+        paused: { type: boolean }
+        emergency_open: { type: boolean }
+        invite_only: { type: boolean }
+        bot_protection:
+          type: string
+          enum: [off, rate_limit_only, challenge_suspicious, challenge_always]
+        return_url: { type: string }
+    LiveOverrides:
+      type: object
+      properties:
+        paused: { type: boolean }
+        emergency_open: { type: boolean }
+        throughput_per_minute: { type: integer }
+        bot_protection:
+          type: string
+          enum: [off, rate_limit_only, challenge_suspicious, challenge_always]
+    RoomConfig:
+      type: object
+      description: Mirrors CDK / admin owner config subset
+    EventConfigBlob:
+      type: object
+tags:
+  - name: Queue
+  - name: Management
+  - name: Ops

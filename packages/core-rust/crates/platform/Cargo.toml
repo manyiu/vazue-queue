@@ -1,0 +1,15 @@
+[package]
+name = "platform"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Deployment profile, tenant resolution, metering emit hooks"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+queue-kernel = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }

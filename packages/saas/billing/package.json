@@ -1,0 +1,17 @@
+{
+  "name": "@vazue/saas-billing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stripe metering client — commercial, NOT published to npm",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "@types/node": "^24.2.0"
+  }
+}

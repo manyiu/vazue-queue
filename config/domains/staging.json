@@ -1,0 +1,17 @@
+{
+  "hostedZoneName": "vazue.com",
+  "productRoot": "staging.queue.vazue.com",
+  "env": "staging",
+  "hosts": {
+    "marketing": "staging.queue.vazue.com",
+    "admin": "app.staging.queue.vazue.com",
+    "managementApi": "api.staging.queue.vazue.com",
+    "waitTenantPattern": "{tenant}.wait.staging.queue.vazue.com",
+    "docs": "docs.staging.queue.vazue.com",
+    "status": "status.staging.queue.vazue.com"
+  },
+  "acm": {
+    "cloudFrontRegion": "us-east-1",
+    "sans": ["staging.queue.vazue.com", "*.staging.queue.vazue.com", "*.wait.staging.queue.vazue.com"]
+  }
+}

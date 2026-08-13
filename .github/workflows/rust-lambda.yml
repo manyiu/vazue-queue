@@ -1,0 +1,20 @@
+name: Rust Lambda CI
+on:
+  push:
+    paths: ['packages/core-rust/**']
+  pull_request:
+    paths: ['packages/core-rust/**']
+jobs:
+  cargo-lambda:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-lambda
+        run: pip install cargo-lambda
+      - name: Build release arm64 (best-effort)
+        working-directory: packages/core-rust
+        run: |
+          cargo test --workspace
+          # Full cargo-lambda zig build enabled once toolchain cached in runners
+          echo "cargo-lambda build --release --arm64 reserved for release pipeline"

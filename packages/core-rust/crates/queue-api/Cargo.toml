@@ -1,0 +1,51 @@
+[package]
+name = "queue-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Queue data plane: enroll, status, admit"
+
+[[bin]]
+name = "local-server"
+path = "src/bin/local-server.rs"
+
+[[bin]]
+name = "enroll"
+path = "src/bin/enroll.rs"
+
+[[bin]]
+name = "status"
+path = "src/bin/status.rs"
+
+[[bin]]
+name = "admit"
+path = "src/bin/admit.rs"
+
+[[bin]]
+name = "serving-reaper"
+path = "src/bin/serving-reaper.rs"
+
+[dependencies]
+queue-kernel = { workspace = true }
+platform = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+axum = { workspace = true }
+tower-http = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-dynamodb = { workspace = true }
+aws-sdk-secretsmanager = { workspace = true }
+aws-sdk-sqs = { workspace = true }
+lambda_http = { workspace = true }
+lambda_runtime = { workspace = true }
+async-trait = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

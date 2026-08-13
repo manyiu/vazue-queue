@@ -1,0 +1,32 @@
+{
+  "name": "create-vazue-queue",
+  "version": "0.1.0",
+  "description": "Scaffold and configure a Vazue Queue CDK app",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "create-vazue-queue": "./dist/cli.js",
+    "vazue-queue": "./dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "ajv": "^8.17.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "@types/node": "^24.2.0",
+    "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

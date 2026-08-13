@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vazue.com/schemas/vazue-queue.config.json",
+  "title": "VazueQueueConfig",
+  "type": "object",
+  "required": ["domainName"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "domainName": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Primary hostname for the queue waiting room / API"
+    },
+    "preset": {
+      "type": "string",
+      "enum": ["minimal", "standard", "full"],
+      "default": "standard"
+    },
+    "awsRegion": {
+      "type": "string",
+      "default": "us-east-1"
+    },
+    "dns": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hostedZoneId": { "type": "string" },
+        "hostedZoneName": { "type": "string" },
+        "createRecords": { "type": "boolean", "default": true }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "waitingRoom": { "type": "boolean" },
+        "adminPortal": { "type": "boolean" },
+        "adminApi": { "type": "boolean" },
+        "waf": { "type": "boolean" },
+        "edgeConnector": { "type": "boolean" },
+        "analytics": { "type": "boolean" },
+        "stripe": { "type": "boolean" },
+        "enrollBuffer": { "type": "boolean", "default": true }
+      }
+    },
+    "queue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "defaultThroughputPerMinute": { "type": "integer", "minimum": 1, "maximum": 10000 },
+        "counterShards": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "tokenTtlSeconds": { "type": "integer", "minimum": 60 },
+        "visitorRecordTtlHours": { "type": "integer", "minimum": 1 },
+        "lambdaMemoryMb": { "type": "integer", "enum": [128, 256, 512, 1024] },
+        "lambdaArchitecture": { "type": "string", "enum": ["arm64", "x86_64"] }
+      }
+    },
+    "security": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "removalPolicy": { "type": "string", "enum": ["destroy", "retain"] },
+        "enableDeletionProtection": { "type": "boolean" },
+        "corsAllowedOrigins": { "type": "array", "items": { "type": "string" } },
+        "botProtection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["off", "rate_limit_only", "challenge_suspicious", "challenge_always"],
+              "default": "off"
+            },
+            "challengeProvider": {
+              "type": "string",
+              "enum": ["turnstile", "waf_captcha", "recaptcha_v3"]
+            },
+            "turnstileSiteKey": { "type": "string" },
+            "turnstileSecretArn": { "type": "string" },
+            "enrollMaxPerIpPerHour": { "type": "integer", "minimum": 0 },
+            "inviteOnly": { "type": "boolean" },
+            "wafBotControl": { "type": "boolean" },
+            "honeypot": { "type": "boolean" }
+          }
+        },
+        "session": {
+          "type": "object",
+          "properties": {
+            "cookieName": { "type": "string", "default": "vazue_qid" },
+            "idempotentEnroll": { "type": "boolean", "default": true }
+          }
+        }
+      }
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  }
+}

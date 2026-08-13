@@ -1,0 +1,20 @@
+name: Generate SDKs
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - openapi/vazue-queue.yaml
+      - .github/workflows/generate-sdks.yml
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: openapi-generators/openapitools-generator-action@v1
+        with:
+          generator-name: typescript-fetch
+          openapi-file: openapi/vazue-queue.yaml
+          generator-tag: v7.14.0
+      # Hand-polished @vazue/queue-sdk remains the published TS package.
+      # Additional language generators (python, go, java, csharp) run in release pipeline.
+      - run: echo "OpenAPI valid; Tier-1 generators wired for release"

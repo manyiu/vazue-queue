@@ -1,0 +1,17 @@
+{
+  "hostedZoneName": "vazue.com",
+  "productRoot": "queue.vazue.com",
+  "env": "prod",
+  "hosts": {
+    "marketing": "queue.vazue.com",
+    "admin": "app.queue.vazue.com",
+    "managementApi": "api.queue.vazue.com",
+    "waitTenantPattern": "{tenant}.wait.queue.vazue.com",
+    "docs": "docs.queue.vazue.com",
+    "status": "status.queue.vazue.com"
+  },
+  "acm": {
+    "cloudFrontRegion": "us-east-1",
+    "sans": ["queue.vazue.com", "*.queue.vazue.com", "*.wait.queue.vazue.com"]
+  }
+}
