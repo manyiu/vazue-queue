@@ -87,7 +87,7 @@ export class QueueDataPlane extends Construct {
       EVENTS_TABLE: this.tables.Events.tableName,
       TOKENS_TABLE: this.tables.Tokens.tableName,
       ROOMS_TABLE: this.tables.Rooms.tableName,
-      ENROLL_VIA_SQS: '0',
+      ENROLL_VIA_SQS: config.features.enrollBuffer ? '1' : '0',
     };
     if (this.enrollQueue) {
       commonEnv.ENROLL_QUEUE_URL = this.enrollQueue.queueUrl;

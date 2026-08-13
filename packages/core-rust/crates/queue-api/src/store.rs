@@ -24,6 +24,8 @@ pub enum StoreError {
 pub struct EnrollRequest {
     #[serde(default)]
     pub event_id: String,
+    /// When set (async enroll buffer), store uses this id instead of generating one.
+    pub request_id: Option<String>,
     pub session_id: Option<String>,
     pub return_url: Option<String>,
     pub invite_code: Option<String>,
@@ -197,7 +199,11 @@ impl QueueStore for InMemoryStore {
         let counter = g.queue_counter.entry(ek.clone()).or_insert(0);
         *counter = next_global_position(*counter);
         let position = *counter;
-        let request_id = Uuid::new_v4().to_string();
+        let request_id = req
+            .request_id
+            .clone()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
         let record = VisitorRecord {
             tenant_id: tenant_id.to_string(),
             event_id: req.event_id.clone(),
@@ -383,6 +389,7 @@ mod tests {
                 "t1",
                 EnrollRequest {
                     event_id: "e1".into(),
+                    request_id: None,
                     session_id: Some("s1".into()),
                     return_url: None,
                     invite_code: None,
@@ -428,6 +435,7 @@ mod tests {
                 "t1",
                 EnrollRequest {
                     event_id: "e1".into(),
+                    request_id: None,
                     session_id: Some("same".into()),
                     return_url: None,
                     invite_code: None,
@@ -443,6 +451,7 @@ mod tests {
                 "t1",
                 EnrollRequest {
                     event_id: "e1".into(),
+                    request_id: None,
                     session_id: Some("same".into()),
                     return_url: None,
                     invite_code: None,
@@ -482,6 +491,7 @@ mod tests {
                 "t1",
                 EnrollRequest {
                     event_id: "e1".into(),
+                    request_id: None,
                     session_id: Some("s1".into()),
                     return_url: None,
                     invite_code: None,
@@ -534,6 +544,7 @@ mod tests {
                 "t1",
                 EnrollRequest {
                     event_id: "e1".into(),
+                    request_id: None,
                     session_id: None,
                     return_url: None,
                     invite_code: None,
@@ -545,5 +556,45 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, StoreError::Conflict(_)));
+    }
+
+    #[tokio::test]
+    async fn enroll_honors_preassigned_request_id() {
+        let store = InMemoryStore::new();
+        let keys = JwtKeys::from_hmac_secret(b"test-secret-key-32-bytes-long!!");
+        store
+            .ensure_event(
+                "t1",
+                EventConfig {
+                    event_id: "e1".into(),
+                    room_id: "r1".into(),
+                    throughput_per_minute: 10,
+                    paused: false,
+                    emergency_open: false,
+                    invite_only: false,
+                    bot_protection: BotProtectionMode::Off,
+                    return_url: None,
+                },
+            )
+            .await
+            .unwrap();
+        let enrolled = store
+            .enroll(
+                "t1",
+                EnrollRequest {
+                    event_id: "e1".into(),
+                    request_id: Some("fixed-req".into()),
+                    session_id: Some("s-fixed".into()),
+                    return_url: None,
+                    invite_code: None,
+                    turnstile_token: None,
+                },
+                &keys,
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(enrolled.request_id, "fixed-req");
+        assert_eq!(enrolled.session_id, "s-fixed");
     }
 }

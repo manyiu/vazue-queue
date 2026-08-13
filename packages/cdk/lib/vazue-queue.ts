@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveConfig, type VazueQueueConfig } from './config.js';
 import { QueueDataPlane } from './data-plane.js';
 import { QueueControlPlane } from './control-plane.js';
+import { QueueEdgeProtect } from './edge-protect.js';
 
 export interface VazueQueueProps extends VazueQueueConfig {}
 
@@ -94,15 +95,19 @@ export class VazueQueue extends Construct {
         webAclId,
       });
 
-      const waitingRoomDist = join(
-        dirname(fileURLToPath(import.meta.url)),
-        '..',
-        '..',
-        '..',
-        'apps',
-        'waiting-room',
-        'dist',
-      );
+      const waitingRoomCandidates = [
+        join(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'waiting-room'),
+        join(
+          dirname(fileURLToPath(import.meta.url)),
+          '..',
+          '..',
+          '..',
+          'apps',
+          'waiting-room',
+          'dist',
+        ),
+      ];
+      const waitingRoomDist = waitingRoomCandidates.find((p) => existsSync(p));
       const roomCfg = {
         brandName: config.waitingRoom.brandName,
         message: config.waitingRoom.message,
@@ -113,7 +118,7 @@ export class VazueQueue extends Construct {
         botMode: config.security.botProtection.mode,
       };
       const configJs = `window.__VAZUE_CONFIG__=${JSON.stringify(roomCfg)};`;
-      if (existsSync(waitingRoomDist)) {
+      if (waitingRoomDist) {
         new s3deploy.BucketDeployment(this, 'WaitingRoomDeploy', {
           sources: [
             s3deploy.Source.asset(waitingRoomDist),
@@ -129,7 +134,7 @@ export class VazueQueue extends Construct {
           sources: [
             s3deploy.Source.data(
               'index.html',
-              `<!doctype html><html><head><script src="/config.js"></script><title>${config.waitingRoom.brandName}</title></head><body><p>${config.waitingRoom.message}</p><p>Build apps/waiting-room and redeploy for the full UI.</p></body></html>`,
+              `<!doctype html><html><head><script src="/config.js"></script><title>${config.waitingRoom.brandName}</title></head><body><p>${config.waitingRoom.message}</p><p>Build apps/waiting-room (or scripts/build-waiting-room.sh) and redeploy for the full UI.</p></body></html>`,
             ),
             s3deploy.Source.data('config.js', configJs),
           ],
@@ -142,6 +147,12 @@ export class VazueQueue extends Construct {
       new cdk.CfnOutput(this, 'WaitingRoomUrl', {
         value: `https://${this.distribution.distributionDomainName}`,
       });
+
+      if (config.features.edgeConnector) {
+        new QueueEdgeProtect(this, 'EdgeProtect', {
+          waitingRoomUrl: `https://${this.distribution.distributionDomainName}`,
+        });
+      }
     }
 
     if (config.features.adminPortal || config.features.adminApi) {
@@ -217,15 +228,19 @@ export class VazueQueue extends Construct {
       }
 
       if (config.features.adminPortal && adminBucket && adminDist) {
-        const adminOut = join(
-          dirname(fileURLToPath(import.meta.url)),
-          '..',
-          '..',
-          '..',
-          'apps',
-          'admin-portal',
-          'out',
-        );
+        const adminCandidates = [
+          join(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'admin-portal'),
+          join(
+            dirname(fileURLToPath(import.meta.url)),
+            '..',
+            '..',
+            '..',
+            'apps',
+            'admin-portal',
+            'out',
+          ),
+        ];
+        const adminOut = adminCandidates.find((p) => existsSync(p));
         const adminCfg = {
           adminApiUrl: this.controlPlane?.httpApi.apiEndpoint ?? '',
           cognitoDomain: `${userPoolDomain.domainName}.auth.${cdk.Stack.of(this).region}.amazoncognito.com`,
@@ -234,7 +249,7 @@ export class VazueQueue extends Construct {
         };
         const runtimeCfg = `window.__VAZUE_ADMIN_CONFIG__=${JSON.stringify(adminCfg)};`;
         const sources = [s3deploy.Source.data('config.js', runtimeCfg)];
-        if (existsSync(adminOut)) {
+        if (adminOut) {
           sources.unshift(s3deploy.Source.asset(adminOut));
         }
         new s3deploy.BucketDeployment(this, 'AdminPortalDeploy', {

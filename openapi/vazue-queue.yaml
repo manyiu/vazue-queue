@@ -50,7 +50,15 @@ paths:
               $ref: '#/components/schemas/EnrollRequest'
       responses:
         '201':
-          description: Enrolled
+          description: Enrolled synchronously
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollResponse'
+        '202':
+          description: |
+            Accepted for async enroll buffer (SQS). Returns the same EnrollResponse shape
+            with status=enrolled and position=0; poll GET status with request_id (404 until worker writes the visitor).
           content:
             application/json:
               schema:
@@ -155,6 +163,9 @@ components:
     EnrollRequest:
       type: object
       properties:
+        request_id:
+          type: string
+          description: Optional; set by enroll Lambda for async buffer so the worker uses a stable id
         session_id:
           type: string
         return_url:

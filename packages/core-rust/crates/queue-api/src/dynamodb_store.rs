@@ -405,7 +405,11 @@ impl QueueStore for DynamoDbStore {
         // Atomic global FIFO position via ADD on queue#global.
         let position = self.add_counter(&req.event_id, "queue#global", 1).await?;
 
-        let request_id = Uuid::new_v4().to_string();
+        let request_id = req
+            .request_id
+            .clone()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| Uuid::new_v4().to_string());
         let enrolled_at = Utc::now().timestamp();
         let ttl = enrolled_at + (self.queue.visitor_record_ttl_hours as i64) * 3600;
         let return_url = req.return_url.or(event.return_url);

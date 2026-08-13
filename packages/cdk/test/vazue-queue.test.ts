@@ -60,8 +60,15 @@ describe('VazueQueue presets', () => {
     });
   });
 
-  it('enroll buffer creates SQS by default', () => {
+  it('enroll buffer enables ENROLL_VIA_SQS on queue Lambdas', () => {
     const template = synthPreset('standard');
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: {
+        Variables: Match.objectLike({
+          ENROLL_VIA_SQS: '1',
+        }),
+      },
+    });
     template.resourceCountIs('AWS::SQS::Queue', 1);
   });
 });
@@ -93,7 +100,8 @@ describe('config', () => {
 });
 
 describe('presets', () => {
-  it('full enables admin', () => {
+  it('full enables admin and edge connector', () => {
     expect(resolveFeatures('full').adminPortal).toBe(true);
+    expect(resolveFeatures('full').edgeConnector).toBe(true);
   });
 });

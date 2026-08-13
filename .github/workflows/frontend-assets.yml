@@ -30,11 +30,21 @@ jobs:
         run: scripts/build-waiting-room.sh
       - name: Build admin portal (static export)
         run: scripts/build-admin-portal.sh
+      - name: Build edge connector
+        run: scripts/build-edge-connector.sh
       - uses: actions/upload-artifact@v4
         with:
           name: waiting-room-dist
-          path: apps/waiting-room/dist
+          path: |
+            apps/waiting-room/dist
+            packages/cdk/assets/waiting-room
       - uses: actions/upload-artifact@v4
         with:
           name: admin-portal-out
-          path: apps/admin-portal/out
+          path: |
+            apps/admin-portal/out
+            packages/cdk/assets/admin-portal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: edge-cloudfront-dist
+          path: packages/cdk/assets/edge-cloudfront

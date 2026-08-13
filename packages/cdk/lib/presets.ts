@@ -37,7 +37,7 @@ const PRESETS: Record<PresetName, FeatureFlags> = {
     adminPortal: true,
     adminApi: true,
     waf: true,
-    edgeConnector: false,
+    edgeConnector: true,
     analytics: true,
     stripe: false,
     enrollBuffer: true,

@@ -176,14 +176,28 @@ async function enroll(
       turnstile_token: turnstileToken,
     }),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  // 201 sync · 202 async SQS buffer (same EnrollResponse shape)
+  if (res.status !== 201 && res.status !== 202) throw new Error(await res.text());
+  const body = (await res.json()) as EnrollResponse;
+  if (body.session_id) setCookie(COOKIE, body.session_id);
+  return body;
 }
 
 async function status(base: string, event: string, requestId: string): Promise<StatusResponse> {
   const url = new URL(`${base}/v1/events/${event}/status`);
   url.searchParams.set('request_id', requestId);
   const res = await fetch(url);
+  if (res.status === 404) {
+    return {
+      request_id: requestId,
+      position: 0,
+      serving: 0,
+      wait_estimate_minutes: 0,
+      poll_after_seconds: 2,
+      status: 'enrolled',
+      admitted: false,
+    };
+  }
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }

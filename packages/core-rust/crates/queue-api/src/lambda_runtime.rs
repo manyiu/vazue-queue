@@ -27,13 +27,18 @@ pub async fn build_aws_state() -> Result<AppState, String> {
     let store = DynamoDbStore::from_env(ddb).map_err(|e| e.to_string())?;
     let secret = load_signing_secret(&conf).await?;
     let tenant_id = std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into());
+    let profile = platform::DeploymentProfile::from_env();
+    let capabilities = match profile {
+        platform::DeploymentProfile::Saas => platform::Capabilities::saas_free(),
+        platform::DeploymentProfile::Oss => platform::Capabilities::oss_full(),
+    };
     Ok(AppState {
         store: Arc::new(store),
         keys: Arc::new(JwtKeys::from_hmac_secret(&secret)),
         use_rsa: false,
         tenant_id,
-        profile: platform::DeploymentProfile::Oss,
-        capabilities: platform::Capabilities::oss_full(),
+        profile,
+        capabilities,
         enroll_via_sqs: std::env::var("ENROLL_VIA_SQS").ok().as_deref() == Some("1"),
     })
 }
@@ -83,6 +88,7 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
     let mut body: EnrollRequest =
         serde_json::from_slice(req.body().as_ref()).unwrap_or(EnrollRequest {
             event_id: event_id.clone(),
+            request_id: None,
             session_id: None,
             return_url: None,
             invite_code: None,
@@ -96,6 +102,20 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
 
     if state.enroll_via_sqs {
         if let Ok(queue_url) = std::env::var("ENROLL_QUEUE_URL") {
+            // Pre-assign ids so clients can poll status immediately (404 until worker finishes).
+            let session_id = body
+                .session_id
+                .clone()
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+            let request_id = body
+                .request_id
+                .clone()
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+            body.session_id = Some(session_id.clone());
+            body.request_id = Some(request_id.clone());
+
             let conf = aws_config::load_defaults(BehaviorVersion::latest()).await;
             let sqs = aws_sdk_sqs::Client::new(&conf);
             let payload = serde_json::to_string(&body).unwrap_or_default();
@@ -108,9 +128,10 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
             return json_response(
                 202,
                 json!({
-                    "status": "accepted",
-                    "event_id": event_id,
-                    "session_id": body.session_id,
+                    "request_id": request_id,
+                    "session_id": session_id,
+                    "position": 0,
+                    "status": "enrolled",
                 }),
             );
         }

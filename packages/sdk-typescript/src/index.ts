@@ -1,4 +1,5 @@
 export interface EnrollRequest {
+  request_id?: string;
   session_id?: string;
   return_url?: string;
   invite_code?: string;
@@ -44,7 +45,10 @@ export class QueueClient {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`enroll failed: ${res.status} ${await res.text()}`);
+    // 201 sync enroll · 202 async enroll buffer (same body shape with status=enrolled)
+    if (res.status !== 201 && res.status !== 202) {
+      throw new Error(`enroll failed: ${res.status} ${await res.text()}`);
+    }
     return res.json() as Promise<EnrollResponse>;
   }
 
@@ -52,6 +56,18 @@ export class QueueClient {
     const url = new URL(`${this.baseUrl}/v1/events/${eventId}/status`);
     url.searchParams.set('request_id', requestId);
     const res = await this.fetchImpl(url);
+    if (res.status === 404) {
+      // Async enroll: visitor not written yet
+      return {
+        request_id: requestId,
+        position: 0,
+        serving: 0,
+        wait_estimate_minutes: 0,
+        poll_after_seconds: 2,
+        status: 'enrolled',
+        admitted: false,
+      };
+    }
     if (!res.ok) throw new Error(`status failed: ${res.status} ${await res.text()}`);
     return res.json() as Promise<StatusResponse>;
   }

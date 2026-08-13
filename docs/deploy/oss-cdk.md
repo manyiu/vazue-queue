@@ -42,6 +42,18 @@ scripts/build-admin-portal.sh
 
 Without Lambda zips, CDK still synthesizes using Node 501 placeholders so tests pass; real deploys need the zips.
 
+## Frontend assets for deploy
+
+```bash
+scripts/build-waiting-room.sh   # → apps/.../dist + packages/cdk/assets/waiting-room
+scripts/build-admin-portal.sh   # → apps/.../out + packages/cdk/assets/admin-portal
+scripts/build-edge-connector.sh # → packages/cdk/assets/edge-cloudfront (full preset)
+```
+
+## Enroll buffer (SQS)
+
+Presets default `enrollBuffer: true`. Enroll Lambda sets `ENROLL_VIA_SQS=1`, returns **202** with a pre-assigned `request_id`, and the worker writes the visitor. Clients poll GET status (404 → treat as still enrolling).
+
 ## Local dual API
 
 ```bash
