@@ -23,6 +23,7 @@ export interface StatusResponse {
   admitted: boolean;
   admit_token?: string;
   return_url?: string;
+  dress_rehearsal?: boolean;
 }
 
 export interface QueueClientOptions {
@@ -106,3 +107,10 @@ export class QueueClient {
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
+
+export {
+  verifyAdmitToken,
+  extractAdmitToken,
+  type AdmitTokenClaims,
+} from './verify.js';
+

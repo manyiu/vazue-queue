@@ -139,6 +139,35 @@ describe('presets', () => {
     expect(resolveFeatures('full').adminPortal).toBe(true);
     expect(resolveFeatures('full').edgeConnector).toBe(true);
   });
+
+  it('standard can enable edgeConnector override', () => {
+    expect(resolveFeatures('standard', { edgeConnector: true }).edgeConnector).toBe(true);
+  });
+});
+
+describe('edge connector', () => {
+  it('exports EdgeProtectVersionArn for external CloudFront association', () => {
+    const app = new App();
+    const stack = new Stack(app, 'EdgeExport');
+    const queue = new VazueQueue(stack, 'Queue', {
+      domainName: 'queue.example.com',
+      preset: 'standard',
+      awsRegion: 'us-east-1',
+      features: { edgeConnector: true },
+      security: {
+        botProtection: { mode: 'off' },
+        jwtHmacSecret: 'test-hmac-secret-16',
+      },
+    });
+    expect(queue.edgeProtect?.edgeVersion).toBeDefined();
+    const template = Template.fromStack(stack);
+    // No protected-origin CF when origin.domainName omitted (waiting room CF only).
+    template.resourceCountIs('AWS::CloudFront::Distribution', 1);
+    const outputs = Object.values(template.findOutputs('*'));
+    expect(
+      outputs.some((o) => String((o as { Description?: string }).Description ?? '').includes('Qualified version ARN')),
+    ).toBe(true);
+  });
 });
 
 describe('SaaS profile env', () => {

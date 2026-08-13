@@ -95,7 +95,9 @@ Lambda@Edge **cannot use environment variables**. CDK bakes `waitingRoomUrl` + `
 
 That creates a third CloudFront distribution in front of `shop.example.com` with a **viewer-request** association: missing/invalid `vazue_token` → 302 to `https://queue.example.com?returnUrl=...`. Point the shop DNS at `ProtectedOriginUrl`.
 
-Without `origin.domainName`, the function is still built; associate the version ARN yourself on an existing distribution (stack `env` must be `us-east-1` for true Lambda@Edge).
+Without `origin.domainName`, the function is still built; associate the version ARN yourself on an existing distribution (stack `env` must be `us-east-1` for true Lambda@Edge). See **[examples/with-existing-cloudfront](../../examples/with-existing-cloudfront)** for a CDK pattern that attaches `queue.edgeProtect.edgeVersion` to a shop distribution you already own.
+
+Origin apps should reject requests without a valid admit token using `@vazue/queue-sdk` `verifyAdmitToken` (same HS256 secret).
 
 ## Enroll buffer (SQS)
 

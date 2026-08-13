@@ -37,4 +37,6 @@ Only these packages:
 
 ## Honest integration note
 
-v1 is a **safety net / fair line** with app-side token validation. Unskippable origin protection is the CloudFront Lambda@Edge connector (v1.1 / Phase 4).
+v1 is a **safety net / fair line** with app-side token validation (`verifyAdmitToken`).
+Unskippable origin protection is the CloudFront Lambda@Edge connector — see
+`examples/with-existing-cloudfront` and `docs/deploy/oss-cdk.md` (Lambda@Edge origin gate).

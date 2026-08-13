@@ -32,6 +32,8 @@ export interface QueueEdgeProtectProps {
  */
 export class QueueEdgeProtect extends Construct {
   public readonly function?: lambda.Function | cloudfront.experimental.EdgeFunction;
+  /** Version to associate as CloudFront viewer-request on an existing distribution. */
+  public readonly edgeVersion?: lambda.IVersion;
   public readonly protectedDistribution?: cloudfront.Distribution;
 
   constructor(scope: Construct, id: string, props: QueueEdgeProtectProps) {
@@ -101,6 +103,8 @@ export class QueueEdgeProtect extends Construct {
       return;
     }
 
+    this.edgeVersion = this.function.currentVersion;
+
     if (props.originDomainName) {
       if (!props.jwtHmacSecret) {
         throw new Error(
@@ -118,7 +122,7 @@ export class QueueEdgeProtect extends Construct {
           allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
           edgeLambdas: [
             {
-              functionVersion: this.function.currentVersion,
+              functionVersion: this.edgeVersion,
               eventType: cloudfront.LambdaEdgeEventType.VIEWER_REQUEST,
             },
           ],
@@ -135,6 +139,10 @@ export class QueueEdgeProtect extends Construct {
       value: this.function.functionArn,
       description:
         'Associate as CloudFront viewer-request on the protected origin if origin.domainName was omitted.',
+    });
+    new cdk.CfnOutput(this, 'EdgeProtectVersionArn', {
+      value: this.edgeVersion.functionArn,
+      description: 'Qualified version ARN for viewer-request association on an existing distribution',
     });
   }
 }
