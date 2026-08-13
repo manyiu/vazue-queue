@@ -18,6 +18,7 @@ type StatusResponse = {
   admitted: boolean;
   admit_token?: string;
   return_url?: string;
+  dress_rehearsal?: boolean;
 };
 
 type RoomTheme = {
@@ -212,6 +213,8 @@ function render(s: StatusResponse) {
   (document.getElementById('status') as HTMLElement).textContent = s.admitted
     ? 'Admitted — redirecting…'
     : `Status: ${s.status} · serving ${s.serving}`;
+  const banner = document.getElementById('rehearsal');
+  if (banner) banner.hidden = !s.dress_rehearsal;
 }
 
 async function main() {

@@ -1,6 +1,6 @@
 //! DynamoDB-backed admin store for AWS Lambda.
 
-use crate::store::{AdminError, AdminStore, LiveOverrides, Room};
+use crate::store::{AdminError, AdminStore, EventStats, LiveOverrides, Room};
 use async_trait::async_trait;
 use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
@@ -13,6 +13,7 @@ pub struct DynamoDbAdminStore {
     client: Client,
     rooms_table: String,
     events_table: String,
+    counters_table: String,
 }
 
 impl DynamoDbAdminStore {
@@ -23,6 +24,7 @@ impl DynamoDbAdminStore {
                 .map_err(|_| AdminError::Message("ROOMS_TABLE required".into()))?,
             events_table: env::var("EVENTS_TABLE")
                 .map_err(|_| AdminError::Message("EVENTS_TABLE required".into()))?,
+            counters_table: env::var("COUNTERS_TABLE").unwrap_or_else(|_| "Counters".into()),
         })
     }
 
@@ -39,6 +41,12 @@ impl DynamoDbAdminStore {
     }
 
     fn get_n_u32(item: &HashMap<String, AttributeValue>, key: &str) -> Option<u32> {
+        item.get(key)
+            .and_then(|v| v.as_n().ok())
+            .and_then(|s| s.parse().ok())
+    }
+
+    fn get_n_u64(item: &HashMap<String, AttributeValue>, key: &str) -> Option<u64> {
         item.get(key)
             .and_then(|v| v.as_n().ok())
             .and_then(|s| s.parse().ok())
@@ -69,6 +77,23 @@ impl DynamoDbAdminStore {
         }
     }
 
+    async fn get_counter(&self, event_id: &str, counter_type: &str) -> Result<u64, AdminError> {
+        let out = self
+            .client
+            .get_item()
+            .table_name(&self.counters_table)
+            .key("eventId", Self::s(event_id))
+            .key("counterType", Self::s(counter_type))
+            .send()
+            .await
+            .map_err(|e| AdminError::Message(e.to_string()))?;
+        Ok(out
+            .item
+            .as_ref()
+            .and_then(|i| Self::get_n_u64(i, "value"))
+            .unwrap_or(0))
+    }
+
     fn event_from_item(item: &HashMap<String, AttributeValue>) -> Result<EventConfig, AdminError> {
         Ok(EventConfig {
             event_id: Self::get_s(item, "eventId").ok_or(AdminError::NotFound)?,
@@ -77,6 +102,7 @@ impl DynamoDbAdminStore {
             paused: Self::get_bool(item, "paused"),
             emergency_open: Self::get_bool(item, "emergencyOpen"),
             invite_only: Self::get_bool(item, "inviteOnly"),
+            dress_rehearsal: Self::get_bool(item, "dressRehearsal"),
             bot_protection: Self::bot_from(
                 &Self::get_s(item, "botProtection").unwrap_or_else(|| "off".into()),
             ),
@@ -155,6 +181,23 @@ impl AdminStore for DynamoDbAdminStore {
         Self::room_from_item(&item)
     }
 
+    async fn list_rooms(&self, tenant_id: &str) -> Result<Vec<Room>, AdminError> {
+        let out = self
+            .client
+            .query()
+            .table_name(&self.rooms_table)
+            .key_condition_expression("tenantId = :t")
+            .expression_attribute_values(":t", Self::s(tenant_id))
+            .send()
+            .await
+            .map_err(|e| AdminError::Message(e.to_string()))?;
+        let mut rooms = Vec::new();
+        for item in out.items.unwrap_or_default() {
+            rooms.push(Self::room_from_item(&item)?);
+        }
+        Ok(rooms)
+    }
+
     async fn create_event(
         &self,
         tenant_id: &str,
@@ -177,6 +220,10 @@ impl AdminStore for DynamoDbAdminStore {
                 AttributeValue::Bool(event.emergency_open),
             ),
             ("inviteOnly".into(), AttributeValue::Bool(event.invite_only)),
+            (
+                "dressRehearsal".into(),
+                AttributeValue::Bool(event.dress_rehearsal),
+            ),
             (
                 "botProtection".into(),
                 Self::s(Self::bot_to(event.bot_protection)),
@@ -237,6 +284,14 @@ impl AdminStore for DynamoDbAdminStore {
             parts.push("botProtection = :b");
             values.insert(":b".into(), Self::s(Self::bot_to(v)));
         }
+        if let Some(v) = overrides.invite_only {
+            parts.push("inviteOnly = :i");
+            values.insert(":i".into(), AttributeValue::Bool(v));
+        }
+        if let Some(v) = overrides.dress_rehearsal {
+            parts.push("dressRehearsal = :d");
+            values.insert(":d".into(), AttributeValue::Bool(v));
+        }
         if parts.is_empty() {
             return self
                 .client
@@ -266,5 +321,32 @@ impl AdminStore for DynamoDbAdminStore {
             .map_err(|e| AdminError::Message(e.to_string()))?;
         let item = out.attributes.ok_or(AdminError::NotFound)?;
         Self::event_from_item(&item)
+    }
+
+    async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, AdminError> {
+        let out = self
+            .client
+            .get_item()
+            .table_name(&self.events_table)
+            .key("tenantId", Self::s(tenant_id))
+            .key("eventId", Self::s(event_id))
+            .send()
+            .await
+            .map_err(|e| AdminError::Message(e.to_string()))?;
+        let event = Self::event_from_item(&out.item.ok_or(AdminError::NotFound)?)?;
+        let serving = self.get_counter(event_id, "serving").await?;
+        let queue_depth = self.get_counter(event_id, "queue#global").await?;
+        let waiting = queue_depth.saturating_sub(serving);
+        Ok(EventStats {
+            event_id: event.event_id.clone(),
+            serving,
+            queue_depth,
+            waiting,
+            admitted: serving.min(queue_depth),
+            throughput_per_minute: event.throughput_per_minute,
+            paused: event.paused,
+            emergency_open: event.emergency_open,
+            dress_rehearsal: event.dress_rehearsal,
+        })
     }
 }

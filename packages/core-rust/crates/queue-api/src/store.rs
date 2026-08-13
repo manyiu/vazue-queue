@@ -51,12 +51,28 @@ pub struct StatusResponse {
     pub admitted: bool,
     pub admit_token: Option<String>,
     pub return_url: Option<String>,
+    #[serde(default)]
+    pub dress_rehearsal: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EventStats {
+    pub event_id: String,
+    pub serving: u64,
+    pub queue_depth: u64,
+    pub waiting: u64,
+    pub admitted: u64,
+    pub throughput_per_minute: u32,
+    pub paused: bool,
+    pub emergency_open: bool,
+    pub dress_rehearsal: bool,
 }
 
 #[async_trait]
 pub trait QueueStore: Send + Sync {
     async fn ensure_event(&self, tenant_id: &str, event: EventConfig) -> Result<(), StoreError>;
     async fn get_event(&self, tenant_id: &str, event_id: &str) -> Result<EventConfig, StoreError>;
+    async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, StoreError>;
     async fn enroll(
         &self,
         tenant_id: &str,
@@ -140,6 +156,39 @@ impl QueueStore for InMemoryStore {
             .get(&Self::event_key(tenant_id, event_id))
             .cloned()
             .ok_or(StoreError::NotFound)
+    }
+
+    async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, StoreError> {
+        let g = self
+            .inner
+            .lock()
+            .map_err(|e| StoreError::Message(e.to_string()))?;
+        let ek = Self::event_key(tenant_id, event_id);
+        let event = g.events.get(&ek).cloned().ok_or(StoreError::NotFound)?;
+        let serving = *g.serving_counter.get(&ek).unwrap_or(&0);
+        let queue_depth = *g.queue_counter.get(&ek).unwrap_or(&0);
+        let mut waiting = 0u64;
+        let mut admitted = 0u64;
+        for v in g.visitors.values() {
+            if v.tenant_id == tenant_id && v.event_id == event_id {
+                match v.status {
+                    VisitorStatus::Waiting | VisitorStatus::Enrolled => waiting += 1,
+                    VisitorStatus::Admitted => admitted += 1,
+                    _ => {}
+                }
+            }
+        }
+        Ok(EventStats {
+            event_id: event.event_id.clone(),
+            serving,
+            queue_depth,
+            waiting,
+            admitted,
+            throughput_per_minute: event.throughput_per_minute,
+            paused: event.paused,
+            emergency_open: event.emergency_open,
+            dress_rehearsal: event.dress_rehearsal,
+        })
     }
 
     async fn enroll(
@@ -348,6 +397,7 @@ impl InMemoryStore {
             admitted,
             admit_token: visitor.admit_token.clone(),
             return_url: visitor.return_url.clone(),
+            dress_rehearsal: event.dress_rehearsal,
         })
     }
 
@@ -377,6 +427,7 @@ mod tests {
                     paused: false,
                     emergency_open: true,
                     invite_only: false,
+                    dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: Some("https://example.com".into()),
                 },
@@ -424,6 +475,7 @@ mod tests {
                     paused: false,
                     emergency_open: false,
                     invite_only: false,
+                    dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
                 },
@@ -480,6 +532,7 @@ mod tests {
                     paused: false,
                     emergency_open: false,
                     invite_only: false,
+                    dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
                 },
@@ -533,6 +586,7 @@ mod tests {
                     paused: true,
                     emergency_open: false,
                     invite_only: false,
+                    dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
                 },
@@ -572,6 +626,7 @@ mod tests {
                     paused: false,
                     emergency_open: false,
                     invite_only: false,
+                    dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
                 },

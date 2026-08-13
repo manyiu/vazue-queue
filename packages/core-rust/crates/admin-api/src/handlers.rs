@@ -86,6 +86,29 @@ pub async fn list_events(
         .map_err(map_err)
 }
 
+pub async fn list_rooms(
+    State(state): State<AdminState>,
+) -> Result<Json<Vec<Room>>, (StatusCode, Json<Value>)> {
+    state
+        .store
+        .list_rooms(&state.tenant_id)
+        .await
+        .map(Json)
+        .map_err(map_err)
+}
+
+pub async fn event_stats(
+    State(state): State<AdminState>,
+    Path(event_id): Path<String>,
+) -> Result<Json<crate::store::EventStats>, (StatusCode, Json<Value>)> {
+    state
+        .store
+        .event_stats(&state.tenant_id, &event_id)
+        .await
+        .map(Json)
+        .map_err(map_err)
+}
+
 pub async fn update_event(
     State(state): State<AdminState>,
     Path(event_id): Path<String>,
@@ -135,6 +158,7 @@ mod tests {
             paused: false,
             emergency_open: false,
             invite_only: false,
+            dress_rehearsal: false,
             bot_protection: BotProtectionMode::Off,
             return_url: None,
         };
@@ -156,6 +180,7 @@ mod tests {
             paused: false,
             emergency_open: false,
             invite_only: false,
+            dress_rehearsal: false,
             bot_protection: BotProtectionMode::Off,
             return_url: None,
         };

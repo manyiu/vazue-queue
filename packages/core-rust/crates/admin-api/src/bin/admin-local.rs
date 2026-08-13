@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use admin_api::handlers::AdminState;
 use admin_api::{
-    create_event, create_room, get_capabilities, health, list_events, ready, require_bearer,
-    update_event, InMemoryAdminStore,
+    create_event, create_room, event_stats, get_capabilities, health, list_events, list_rooms,
+    ready, require_bearer, update_event, InMemoryAdminStore,
 };
 use axum::middleware;
 use axum::routing::{get, post, put};
@@ -25,9 +25,10 @@ async fn main() {
         .route("/health", get(health))
         .route("/ready", get(ready))
         .route("/v1/capabilities", get(get_capabilities))
-        .route("/v1/rooms", post(create_room))
+        .route("/v1/rooms", post(create_room).get(list_rooms))
         .route("/v1/events", post(create_event).get(list_events))
         .route("/v1/events/{event_id}", put(update_event))
+        .route("/v1/events/{event_id}/stats", get(event_stats))
         .layer(middleware::from_fn(require_bearer))
         .layer(CorsLayer::permissive())
         .with_state(state);

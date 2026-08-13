@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use admin_api::handlers::AdminState;
 use admin_api::{
-    create_event, create_room, get_capabilities, health as admin_health, list_events,
-    ready as admin_ready, require_bearer, update_event, AdminError, AdminStore, InMemoryAdminStore,
-    LiveOverrides, Room,
+    create_event, create_room, event_stats, get_capabilities, health as admin_health, list_events,
+    list_rooms, ready as admin_ready, require_bearer, update_event, AdminError, AdminStore,
+    EventStats, InMemoryAdminStore, LiveOverrides, Room,
 };
 use async_trait::async_trait;
 use axum::middleware;
@@ -36,6 +36,10 @@ impl AdminStore for BridgedAdminStore {
 
     async fn get_room(&self, tenant_id: &str, room_id: &str) -> Result<Room, AdminError> {
         self.admin.get_room(tenant_id, room_id).await
+    }
+
+    async fn list_rooms(&self, tenant_id: &str) -> Result<Vec<Room>, AdminError> {
+        self.admin.list_rooms(tenant_id).await
     }
 
     async fn create_event(
@@ -71,6 +75,28 @@ impl AdminStore for BridgedAdminStore {
             .map_err(|e| AdminError::Message(e.to_string()))?;
         Ok(updated)
     }
+
+    async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, AdminError> {
+        let s = self
+            .queue
+            .event_stats(tenant_id, event_id)
+            .await
+            .map_err(|e| match e {
+                queue_api::store::StoreError::NotFound => AdminError::NotFound,
+                other => AdminError::Message(other.to_string()),
+            })?;
+        Ok(EventStats {
+            event_id: s.event_id,
+            serving: s.serving,
+            queue_depth: s.queue_depth,
+            waiting: s.waiting,
+            admitted: s.admitted,
+            throughput_per_minute: s.throughput_per_minute,
+            paused: s.paused,
+            emergency_open: s.emergency_open,
+            dress_rehearsal: s.dress_rehearsal,
+        })
+    }
 }
 
 #[tokio::main]
@@ -91,6 +117,7 @@ async fn main() {
         paused: false,
         emergency_open: false,
         invite_only: false,
+        dress_rehearsal: false,
         bot_protection: queue_kernel::BotProtectionMode::Off,
         return_url: Some("https://example.com/checkout".into()),
     };
@@ -127,9 +154,10 @@ async fn main() {
         .route("/health", get(admin_health))
         .route("/ready", get(admin_ready))
         .route("/v1/capabilities", get(get_capabilities))
-        .route("/v1/rooms", post(create_room))
+        .route("/v1/rooms", post(create_room).get(list_rooms))
         .route("/v1/events", post(create_event).get(list_events))
         .route("/v1/events/{event_id}", put(update_event))
+        .route("/v1/events/{event_id}/stats", get(event_stats))
         .layer(middleware::from_fn(require_bearer))
         .layer(CorsLayer::permissive())
         .with_state(admin_state);

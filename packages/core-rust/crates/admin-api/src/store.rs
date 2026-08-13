@@ -28,12 +28,28 @@ pub struct LiveOverrides {
     pub emergency_open: Option<bool>,
     pub throughput_per_minute: Option<u32>,
     pub bot_protection: Option<BotProtectionMode>,
+    pub invite_only: Option<bool>,
+    pub dress_rehearsal: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EventStats {
+    pub event_id: String,
+    pub serving: u64,
+    pub queue_depth: u64,
+    pub waiting: u64,
+    pub admitted: u64,
+    pub throughput_per_minute: u32,
+    pub paused: bool,
+    pub emergency_open: bool,
+    pub dress_rehearsal: bool,
 }
 
 #[async_trait]
 pub trait AdminStore: Send + Sync {
     async fn create_room(&self, tenant_id: &str, room: Room) -> Result<Room, AdminError>;
     async fn get_room(&self, tenant_id: &str, room_id: &str) -> Result<Room, AdminError>;
+    async fn list_rooms(&self, tenant_id: &str) -> Result<Vec<Room>, AdminError>;
     async fn create_event(
         &self,
         tenant_id: &str,
@@ -46,6 +62,7 @@ pub trait AdminStore: Send + Sync {
         event_id: &str,
         overrides: LiveOverrides,
     ) -> Result<EventConfig, AdminError>;
+    async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, AdminError>;
 }
 
 #[derive(Default)]
@@ -86,6 +103,18 @@ impl AdminStore for InMemoryAdminStore {
         g.get(&Self::key(tenant_id, room_id))
             .cloned()
             .ok_or(AdminError::NotFound)
+    }
+
+    async fn list_rooms(&self, tenant_id: &str) -> Result<Vec<Room>, AdminError> {
+        let g = self
+            .rooms
+            .lock()
+            .map_err(|e| AdminError::Message(e.to_string()))?;
+        let prefix = format!("{tenant_id}|");
+        Ok(g.iter()
+            .filter(|(k, _)| k.starts_with(&prefix))
+            .map(|(_, v)| v.clone())
+            .collect())
     }
 
     async fn create_event(
@@ -141,6 +170,32 @@ impl AdminStore for InMemoryAdminStore {
         if let Some(v) = overrides.bot_protection {
             e.bot_protection = v;
         }
+        if let Some(v) = overrides.invite_only {
+            e.invite_only = v;
+        }
+        if let Some(v) = overrides.dress_rehearsal {
+            e.dress_rehearsal = v;
+        }
         Ok(e.clone())
+    }
+
+    async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, AdminError> {
+        let e = self
+            .list_events(tenant_id)
+            .await?
+            .into_iter()
+            .find(|ev| ev.event_id == event_id)
+            .ok_or(AdminError::NotFound)?;
+        Ok(EventStats {
+            event_id: e.event_id.clone(),
+            serving: 0,
+            queue_depth: 0,
+            waiting: 0,
+            admitted: 0,
+            throughput_per_minute: e.throughput_per_minute,
+            paused: e.paused,
+            emergency_open: e.emergency_open,
+            dress_rehearsal: e.dress_rehearsal,
+        })
     }
 }

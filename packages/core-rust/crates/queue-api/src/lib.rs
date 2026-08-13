@@ -9,4 +9,4 @@ pub mod store;
 pub use dynamodb_store::DynamoDbStore;
 pub use handlers::{admit, capabilities, enroll, health, ready, status};
 pub use state::AppState;
-pub use store::{InMemoryStore, QueueStore};
+pub use store::{EventStats, InMemoryStore, QueueStore};

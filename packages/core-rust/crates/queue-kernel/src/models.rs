@@ -58,6 +58,9 @@ pub struct EventConfig {
     pub paused: bool,
     pub emergency_open: bool,
     pub invite_only: bool,
+    /// When true, queue runs for practice — tokens are valid but marked for origin to reject real sales.
+    #[serde(default)]
+    pub dress_rehearsal: bool,
     pub bot_protection: BotProtectionMode,
     pub return_url: Option<String>,
 }

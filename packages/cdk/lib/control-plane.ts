@@ -45,13 +45,14 @@ export class QueueControlPlane extends Construct {
         TENANT_ID: 'default',
         ROOMS_TABLE: tables.Rooms.tableName,
         EVENTS_TABLE: tables.Events.tableName,
+        COUNTERS_TABLE: tables.Counters.tableName,
         TENANTS_TABLE: tables.Tenants.tableName,
         SIGNING_SECRET_ARN: signingSecret.secretArn,
       },
     });
 
     signingSecret.grantRead(this.adminFn);
-    for (const t of [tables.Rooms, tables.Events, tables.Tenants]) {
+    for (const t of [tables.Rooms, tables.Events, tables.Tenants, tables.Counters]) {
       t.grantReadWriteData(this.adminFn);
     }
 
@@ -91,7 +92,7 @@ export class QueueControlPlane extends Construct {
     });
     this.httpApi.addRoutes({
       path: '/v1/rooms',
-      methods: [apigwv2.HttpMethod.POST],
+      methods: [apigwv2.HttpMethod.POST, apigwv2.HttpMethod.GET],
       integration,
       authorizer: jwtAuthorizer,
     });
@@ -104,6 +105,12 @@ export class QueueControlPlane extends Construct {
     this.httpApi.addRoutes({
       path: '/v1/events/{eventId}',
       methods: [apigwv2.HttpMethod.PUT],
+      integration,
+      authorizer: jwtAuthorizer,
+    });
+    this.httpApi.addRoutes({
+      path: '/v1/events/{eventId}/stats',
+      methods: [apigwv2.HttpMethod.GET],
       integration,
       authorizer: jwtAuthorizer,
     });

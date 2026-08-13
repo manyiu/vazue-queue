@@ -1,6 +1,8 @@
 //! DynamoDB-backed [`QueueStore`] for AWS Lambda deployments.
 
-use crate::store::{EnrollRequest, EnrollResponse, QueueStore, StatusResponse, StoreError};
+use crate::store::{
+    EnrollRequest, EnrollResponse, EventStats, QueueStore, StatusResponse, StoreError,
+};
 use async_trait::async_trait;
 use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
@@ -100,6 +102,7 @@ impl DynamoDbStore {
             paused: Self::get_bool(item, "paused"),
             emergency_open: Self::get_bool(item, "emergencyOpen"),
             invite_only: Self::get_bool(item, "inviteOnly"),
+            dress_rehearsal: Self::get_bool(item, "dressRehearsal"),
             bot_protection: bot,
             return_url: Self::get_s(item, "returnUrl"),
         })
@@ -269,6 +272,7 @@ impl DynamoDbStore {
             admitted,
             admit_token: visitor.admit_token.clone(),
             return_url: visitor.return_url.clone(),
+            dress_rehearsal: event.dress_rehearsal,
         })
     }
 }
@@ -296,6 +300,10 @@ impl QueueStore for DynamoDbStore {
                 AttributeValue::Bool(event.emergency_open),
             ),
             ("inviteOnly".into(), AttributeValue::Bool(event.invite_only)),
+            (
+                "dressRehearsal".into(),
+                AttributeValue::Bool(event.dress_rehearsal),
+            ),
             ("botProtection".into(), Self::av_s(bot)),
         ]);
         if let Some(url) = &event.return_url {
@@ -323,6 +331,24 @@ impl QueueStore for DynamoDbStore {
             .map_err(|e| StoreError::Message(e.to_string()))?;
         let item = out.item.ok_or(StoreError::NotFound)?;
         Self::event_from_item(&item)
+    }
+
+    async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, StoreError> {
+        let event = self.get_event(tenant_id, event_id).await?;
+        let serving = self.get_counter(event_id, "serving").await?;
+        let queue_depth = self.get_counter(event_id, "queue#global").await?;
+        let waiting = queue_depth.saturating_sub(serving);
+        Ok(EventStats {
+            event_id: event.event_id.clone(),
+            serving,
+            queue_depth,
+            waiting,
+            admitted: serving.min(queue_depth),
+            throughput_per_minute: event.throughput_per_minute,
+            paused: event.paused,
+            emergency_open: event.emergency_open,
+            dress_rehearsal: event.dress_rehearsal,
+        })
     }
 
     async fn enroll(
