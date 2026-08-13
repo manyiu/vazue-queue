@@ -15,13 +15,25 @@ export interface EdgeConfig {
 }
 
 function getConfig(): EdgeConfig {
-  // Lambda@Edge: config baked at deploy or loaded from CloudFront KVS in production.
+  const baked = loadBakedConfig();
   return {
-    waitingRoomUrl: process.env.WAITING_ROOM_URL ?? 'https://queue.example.com/wait',
-    jwtSecret: process.env.JWT_HMAC_SECRET ?? 'local-dev-hmac-secret-change-me',
-    cookieName: process.env.QUEUE_COOKIE ?? 'vazue_token',
-    publicPaths: ['/health', '/ready', '/favicon.ico'],
+    waitingRoomUrl:
+      baked.waitingRoomUrl || process.env.WAITING_ROOM_URL || 'https://queue.example.com/wait',
+    jwtSecret: baked.jwtSecret || process.env.JWT_HMAC_SECRET || '',
+    cookieName: baked.cookieName || process.env.QUEUE_COOKIE || 'vazue_token',
+    publicPaths: baked.publicPaths ?? ['/health', '/ready', '/favicon.ico'],
   };
+}
+
+/** CDK bakes `edge-config.js` next to the handler (Lambda@Edge has no env vars). */
+function loadBakedConfig(): Partial<EdgeConfig> {
+  try {
+    // CJS require — Lambda@Edge viewer-request must stay CommonJS-compatible.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('./edge-config.js') as Partial<EdgeConfig>;
+  } catch {
+    return {};
+  }
 }
 
 function parseCookies(header: string | undefined): Record<string, string> {
@@ -98,13 +110,15 @@ export async function handler(
   event: CloudFrontRequestEvent | CloudFrontResponseEvent,
 ): Promise<CloudFrontRequestResult | CloudFrontResponseResult> {
   if ('Records' in event && event.Records[0].cf.request) {
-    return handleRequest(event as CloudFrontRequestEvent);
+    return handleViewerRequest(event as CloudFrontRequestEvent);
   }
   return (event as CloudFrontResponseEvent).Records[0].cf.response;
 }
 
-async function handleRequest(event: CloudFrontRequestEvent): Promise<CloudFrontRequestResult> {
-  const cfg = getConfig();
+export function handleViewerRequest(
+  event: CloudFrontRequestEvent,
+  cfg: EdgeConfig = getConfig(),
+): CloudFrontRequestResult {
   const req = event.Records[0].cf.request;
   const uri = req.uri || '/';
 

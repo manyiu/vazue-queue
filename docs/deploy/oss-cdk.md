@@ -80,6 +80,23 @@ scripts/build-admin-portal.sh   # → apps/.../out + packages/cdk/assets/admin-p
 scripts/build-edge-connector.sh # → packages/cdk/assets/edge-cloudfront (full preset)
 ```
 
+## Lambda@Edge origin gate (`full` preset)
+
+Lambda@Edge **cannot use environment variables**. CDK bakes `waitingRoomUrl` + `jwtHmacSecret` into `edge-config.js` beside the handler.
+
+```json
+{
+  "domainName": "queue.example.com",
+  "preset": "full",
+  "origin": { "domainName": "shop.example.com" },
+  "security": { "jwtHmacSecret": "replace-with-a-long-random-secret" }
+}
+```
+
+That creates a third CloudFront distribution in front of `shop.example.com` with a **viewer-request** association: missing/invalid `vazue_token` → 302 to `https://queue.example.com?returnUrl=...`. Point the shop DNS at `ProtectedOriginUrl`.
+
+Without `origin.domainName`, the function is still built; associate the version ARN yourself on an existing distribution (stack `env` must be `us-east-1` for true Lambda@Edge).
+
 ## Enroll buffer (SQS)
 
 Presets default `enrollBuffer: true`. Enroll Lambda sets `ENROLL_VIA_SQS=1`, returns **202** with a pre-assigned `request_id`, and the worker writes the visitor. Clients poll GET status (404 → treat as still enrolling).

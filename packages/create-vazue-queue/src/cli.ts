@@ -31,7 +31,7 @@ async function wizard(defaults?: Partial<Config>): Promise<Config> {
     options: [
       { value: 'minimal', label: 'minimal — API only' },
       { value: 'standard', label: 'standard — waiting room (recommended)' },
-      { value: 'full', label: 'full — admin + WAF' },
+      { value: 'full', label: 'full — admin + WAF + Lambda@Edge' },
     ],
     initialValue: defaults?.preset ?? 'standard',
   })) as Config['preset'];
@@ -106,17 +106,40 @@ async function wizard(defaults?: Partial<Config>): Promise<Config> {
   });
   if (p.isCancel(waitingMessage)) process.exit(0);
 
+  let origin: Config['origin'];
+  let jwtHmacSecret: string | undefined;
+  if (preset === 'full') {
+    const originHost = await p.text({
+      message: 'Origin hostname to protect with Lambda@Edge (optional)',
+      placeholder: 'shop.example.com',
+      initialValue: defaults?.origin?.domainName ?? '',
+    });
+    if (p.isCancel(originHost)) process.exit(0);
+    if (String(originHost).trim()) {
+      origin = { domainName: String(originHost).trim() };
+      const secret = await p.text({
+        message: 'HS256 JWT secret for edge + data plane (min 16 chars)',
+        initialValue: defaults?.security?.jwtHmacSecret ?? '',
+        validate: (v) => (!v || String(v).length < 16 ? 'Required when origin is set (min 16)' : undefined),
+      });
+      if (p.isCancel(secret)) process.exit(0);
+      jwtHmacSecret = String(secret);
+    }
+  }
+
   const cfg: Config = {
     domainName: String(domainName),
     preset,
     awsRegion: String(awsRegion),
     ...(dns && Object.keys(dns).length ? { dns } : {}),
+    ...(origin ? { origin } : {}),
     queue: { defaultThroughputPerMinute: Number(throughput) || 100 },
     security: {
       botProtection: {
         mode: botMode,
         ...(turnstileSiteKey ? { turnstileSiteKey } : {}),
       },
+      ...(jwtHmacSecret ? { jwtHmacSecret } : {}),
     },
     waitingRoom: {
       brandName: String(brandName),

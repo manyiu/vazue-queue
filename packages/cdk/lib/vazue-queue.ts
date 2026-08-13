@@ -23,6 +23,7 @@ export class VazueQueue extends Construct {
   public readonly distribution?: cloudfront.Distribution;
   public readonly userPool?: cognito.UserPool;
   public readonly userPoolClient?: cognito.UserPoolClient;
+  public readonly edgeProtect?: QueueEdgeProtect;
 
   constructor(scope: Construct, id: string, props: VazueQueueProps) {
     super(scope, id);
@@ -169,8 +170,11 @@ export class VazueQueue extends Construct {
       });
 
       if (config.features.edgeConnector) {
-        new QueueEdgeProtect(this, 'EdgeProtect', {
-          waitingRoomUrl: `https://${this.distribution.distributionDomainName}`,
+        this.edgeProtect = new QueueEdgeProtect(this, 'EdgeProtect', {
+          waitingRoomUrl: `https://${config.domainName}`,
+          jwtHmacSecret: config.security.jwtHmacSecret,
+          cookieName: 'vazue_token',
+          originDomainName: config.origin?.domainName,
         });
       }
     }

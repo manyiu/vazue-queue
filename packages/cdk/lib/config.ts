@@ -49,6 +49,11 @@ export interface VazueQueueConfig {
       cookieName?: string;
       idempotentEnroll?: boolean;
     };
+    /** HS256 secret shared by data plane and Lambda@Edge (required to attach origin gate). */
+    jwtHmacSecret?: string;
+  };
+  origin?: {
+    domainName?: string;
   };
   waitingRoom?: {
     brandName?: string;
@@ -73,6 +78,10 @@ export interface ResolvedConfig extends VazueQueueConfig {
     corsAllowedOrigins: string[];
     botProtection: Required<Pick<BotProtectionConfig, 'mode'>> & BotProtectionConfig;
     session: { cookieName: string; idempotentEnroll: boolean };
+    jwtHmacSecret?: string;
+  };
+  origin?: {
+    domainName?: string;
   };
   waitingRoom: {
     brandName: string;
@@ -168,7 +177,9 @@ export function resolveConfig(input: VazueQueueConfig): ResolvedConfig {
         cookieName: input.security?.session?.cookieName ?? 'vazue_qid',
         idempotentEnroll: input.security?.session?.idempotentEnroll ?? true,
       },
+      jwtHmacSecret: input.security?.jwtHmacSecret,
     },
+    origin: input.origin,
     waitingRoom: {
       brandName: input.waitingRoom?.brandName ?? 'Vazue Queue',
       message:

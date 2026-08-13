@@ -90,6 +90,22 @@
             "cookieName": { "type": "string", "default": "vazue_qid" },
             "idempotentEnroll": { "type": "boolean", "default": true }
           }
+        },
+        "jwtHmacSecret": {
+          "type": "string",
+          "minLength": 16,
+          "description": "HS256 secret baked into Lambda@Edge (no env vars at the edge). Must match data-plane signing. Required when origin.domainName is set."
+        }
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Protected customer origin. When set with edgeConnector, CDK creates a CloudFront distribution with viewer-request Lambda@Edge.",
+      "properties": {
+        "domainName": {
+          "type": "string",
+          "description": "Hostname of the site to protect (e.g. shop.example.com)"
         }
       }
     },

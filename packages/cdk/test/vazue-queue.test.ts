@@ -70,18 +70,43 @@ describe('VazueQueue presets', () => {
     });
   });
 
-  it('enroll buffer enables ENROLL_VIA_SQS on queue Lambdas', () => {
-    const template = synthPreset('standard');
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      Environment: {
-        Variables: Match.objectLike({
-          ENROLL_VIA_SQS: '1',
+    it('attaches Lambda@Edge viewer-request when origin and jwt secret are set', () => {
+      const app = new App();
+      const stack = new Stack(app, 'EdgeOrigin', {
+        env: { account: '111111111111', region: 'us-east-1' },
+      });
+      new VazueQueue(stack, 'Queue', {
+        domainName: 'queue.example.com',
+        preset: 'full',
+        awsRegion: 'us-east-1',
+        origin: { domainName: 'shop.example.com' },
+        security: { jwtHmacSecret: 'test-hmac-secret-16' },
+      });
+      const template = Template.fromStack(stack);
+      template.resourceCountIs('AWS::CloudFront::Distribution', 3);
+      template.hasResourceProperties('AWS::CloudFront::Distribution', {
+        DistributionConfig: Match.objectLike({
+          DefaultCacheBehavior: Match.objectLike({
+            LambdaFunctionAssociations: Match.arrayWith([
+              Match.objectLike({ EventType: 'viewer-request' }),
+            ]),
+          }),
         }),
-      },
+      });
     });
-    template.resourceCountIs('AWS::SQS::Queue', 1);
+
+    it('enroll buffer enables ENROLL_VIA_SQS on queue Lambdas', () => {
+      const template = synthPreset('standard');
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Environment: {
+          Variables: Match.objectLike({
+            ENROLL_VIA_SQS: '1',
+          }),
+        },
+      });
+      template.resourceCountIs('AWS::SQS::Queue', 1);
+    });
   });
-});
 
 describe('config', () => {
   it('rejects missing domainName', () => {

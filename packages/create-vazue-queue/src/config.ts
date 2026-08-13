@@ -8,15 +8,17 @@ export type QueueCliConfig = {
   awsRegion: string;
   dns?: { hostedZoneId?: string; hostedZoneName?: string };
   queue?: { defaultThroughputPerMinute?: number };
-  security?: {
-    botProtection?: { mode?: string; turnstileSiteKey?: string };
-  };
   waitingRoom?: {
     brandName?: string;
     message?: string;
     logoUrl?: string;
     accentColor?: string;
     backgroundColor?: string;
+  };
+  origin?: { domainName?: string };
+  security?: {
+    botProtection?: { mode?: string; turnstileSiteKey?: string };
+    jwtHmacSecret?: string;
   };
 };
 

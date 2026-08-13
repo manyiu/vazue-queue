@@ -41,6 +41,9 @@ export class QueueDataPlane extends Construct {
     this.signingSecret = new secretsmanager.Secret(this, 'SigningKey', {
       description: 'Vazue Queue JWT signing key (loaded at Lambda cold start)',
       removalPolicy: removal,
+      ...(config.security.jwtHmacSecret
+        ? { secretStringValue: cdk.SecretValue.unsafePlainText(config.security.jwtHmacSecret) }
+        : {}),
     });
 
     const visitors = this.table('Visitors', 'eventId', 'requestId', removal, true);
