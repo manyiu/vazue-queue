@@ -22,7 +22,7 @@ pnpm test:local    # mandatory before PR / deploy
 pnpm verify        # alias for agent stop condition
 docker compose -f docker-compose.local.yml up -d
 cargo run -p queue-api --bin local-server
-# queue :3000 + admin :3001 (shared in-memory events)
+# queue :3000 + admin :3001 (shared in-memory events; ADMIN_DEV_AUTH=1)
 ```
 
 ## Package boundaries

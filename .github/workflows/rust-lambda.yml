@@ -35,10 +35,17 @@ jobs:
         run: cargo test --workspace
       - name: Build Lambda assets
         env:
+          # PR/push: soft fail if cargo-lambda/zig unavailable. workflow_dispatch can require zips.
           REQUIRE_ARTIFACTS: ${{ github.event_name == 'workflow_dispatch' && inputs.require_artifacts && '1' || '0' }}
         run: |
           chmod +x scripts/build-lambda-assets.sh
           scripts/build-lambda-assets.sh
+          if [ "${REQUIRE_ARTIFACTS}" = "1" ]; then
+            test -n "$(ls packages/cdk/assets/lambda/*.zip 2>/dev/null)" || {
+              echo "REQUIRE_ARTIFACTS=1 but no lambda zips produced" >&2
+              exit 1
+            }
+          fi
       - name: Upload artifacts when present
         uses: actions/upload-artifact@v4
         with:

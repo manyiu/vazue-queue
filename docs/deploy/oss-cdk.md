@@ -47,7 +47,16 @@ Without Lambda zips, CDK still synthesizes using Node 501 placeholders so tests 
 ```bash
 cargo run -p queue-api --bin local-server --manifest-path packages/core-rust/Cargo.toml
 # queue :3000  ·  admin :3001 (event creates sync into the queue store)
+# Sets VAZUE_LOCAL=1 and ADMIN_DEV_AUTH=1 so admin Bearer checks are skipped.
 ```
+
+Admin portal local: `NEXT_PUBLIC_ADMIN_DEV_AUTH=1` (and optional Cognito env vars). Deployed admin loads Cognito + API URLs from `/config.js` (`window.__VAZUE_ADMIN_CONFIG__`).
+
+To exercise admin JWT presence checks locally: unset those flags and set `ADMIN_REQUIRE_JWT=1`.
+
+## Lambda artifacts
+
+`scripts/build-lambda-assets.sh` produces `packages/cdk/assets/lambda/*.zip`. On PR CI, missing zips are non-fatal (`REQUIRE_ARTIFACTS=0`); use workflow_dispatch on **Rust Lambda CI** with `require_artifacts=true` before a real deploy. Without zips, CDK synthesizes Node 501 placeholders.
 
 ## Load test
 

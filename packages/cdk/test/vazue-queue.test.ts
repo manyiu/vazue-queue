@@ -34,12 +34,16 @@ describe('VazueQueue presets', () => {
     template.resourceCountIs('AWS::DynamoDB::Table', 7);
   });
 
-  it('full includes Cognito, WAF, admin HTTP API, and admin CloudFront', () => {
+  it('full includes Cognito Hosted UI domain, WAF, admin HTTP API, and admin CloudFront', () => {
     const template = synthPreset('full');
     template.resourceCountIs('AWS::Cognito::UserPool', 1);
+    template.resourceCountIs('AWS::Cognito::UserPoolDomain', 1);
     template.resourceCountIs('AWS::WAFv2::WebACL', 1);
     template.resourceCountIs('AWS::ApiGatewayV2::Api', 2);
     template.resourceCountIs('AWS::CloudFront::Distribution', 2);
+    template.hasResourceProperties('AWS::Cognito::UserPoolDomain', {
+      Domain: Match.anyValue(),
+    });
   });
 
   it('schedules serving reaper', () => {

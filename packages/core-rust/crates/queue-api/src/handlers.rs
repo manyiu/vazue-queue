@@ -24,7 +24,7 @@ pub async fn enroll(
     Path(event_id): Path<String>,
     Json(mut body): Json<EnrollRequest>,
 ) -> Result<(StatusCode, Json<EnrollResponse>), (StatusCode, Json<Value>)> {
-    body.event_id = event_id;
+    body.event_id = event_id.clone();
     let mode = std::env::var("BOT_PROTECTION_MODE").unwrap_or_else(|_| "off".into());
     if mode == "challenge_always" || mode == "challenge_suspicious" {
         let token = body.turnstile_token.as_deref().unwrap_or("");
@@ -44,7 +44,13 @@ pub async fn enroll(
         .enroll(&state.tenant_id, body, &state.keys, state.use_rsa)
         .await
     {
-        Ok(resp) => Ok((StatusCode::CREATED, Json(resp))),
+        Ok(resp) => {
+            platform::emit_usage(
+                state.profile,
+                &platform::UsageEvent::enrolled(&state.tenant_id, &event_id),
+            );
+            Ok((StatusCode::CREATED, Json(resp)))
+        }
         Err(e) => Err(map_err(e)),
     }
 }

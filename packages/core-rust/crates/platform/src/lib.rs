@@ -1,7 +1,9 @@
 //! Platform adapters: deployment profile, capabilities, metering stubs.
 
+pub mod metering;
 pub mod turnstile;
 
+pub use metering::{emit_usage, MeterName, UsageEvent};
 pub use turnstile::verify_turnstile;
 
 use serde::{Deserialize, Serialize};

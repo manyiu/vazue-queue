@@ -4,10 +4,11 @@ use std::sync::Arc;
 
 use admin_api::handlers::AdminState;
 use admin_api::{
-    create_event, create_room, get_capabilities, health, list_events, update_event,
+    create_event, create_room, get_capabilities, health, list_events, require_bearer, update_event,
     DynamoDbAdminStore, InMemoryAdminStore,
 };
 use aws_config::BehaviorVersion;
+use axum::middleware;
 use axum::routing::{get, post, put};
 use axum::Router;
 use lambda_http::{run, Error};
@@ -44,6 +45,7 @@ async fn main() -> Result<(), Error> {
         .route("/v1/events", post(create_event).get(list_events))
         .route("/v1/events/{event_id}", put(update_event))
         .route("/v1/events/{eventId}", put(update_event))
+        .layer(middleware::from_fn(require_bearer))
         .layer(CorsLayer::permissive())
         .with_state(state);
 

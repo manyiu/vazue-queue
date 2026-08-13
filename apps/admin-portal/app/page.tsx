@@ -15,12 +15,44 @@ type EventRow = {
   bot_protection: string;
 };
 
-const API = process.env.NEXT_PUBLIC_ADMIN_API ?? 'http://localhost:3001';
-const COGNITO_DOMAIN = process.env.NEXT_PUBLIC_COGNITO_DOMAIN;
-const COGNITO_CLIENT_ID = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID;
-const COGNITO_REDIRECT =
-  process.env.NEXT_PUBLIC_COGNITO_REDIRECT_URI ??
-  (typeof window !== 'undefined' ? `${window.location.origin}/` : 'http://localhost:5174/');
+type AdminRuntimeConfig = {
+  adminApiUrl?: string;
+  cognitoDomain?: string;
+  cognitoClientId?: string;
+  cognitoRedirectUri?: string;
+};
+
+declare global {
+  interface Window {
+    __VAZUE_ADMIN_CONFIG__?: AdminRuntimeConfig;
+  }
+}
+
+function runtimeConfig(): AdminRuntimeConfig {
+  if (typeof window === 'undefined') return {};
+  return window.__VAZUE_ADMIN_CONFIG__ ?? {};
+}
+
+function resolveApiBase(): string {
+  return (
+    runtimeConfig().adminApiUrl ||
+    process.env.NEXT_PUBLIC_ADMIN_API ||
+    'http://localhost:3001'
+  );
+}
+
+function resolveCognito() {
+  const rt = runtimeConfig();
+  return {
+    domain: rt.cognitoDomain || process.env.NEXT_PUBLIC_COGNITO_DOMAIN,
+    clientId: rt.cognitoClientId || process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID,
+    redirect:
+      rt.cognitoRedirectUri ||
+      process.env.NEXT_PUBLIC_COGNITO_REDIRECT_URI ||
+      (typeof window !== 'undefined' ? `${window.location.origin}/` : 'http://localhost:5174/'),
+  };
+}
+
 const DEV_AUTH = process.env.NEXT_PUBLIC_ADMIN_DEV_AUTH === '1';
 
 function tokenStorageKey() {
@@ -39,12 +71,13 @@ function writeToken(token: string | null) {
 }
 
 function hostedLoginUrl(): string | null {
-  if (!COGNITO_DOMAIN || !COGNITO_CLIENT_ID) return null;
-  const u = new URL(`https://${COGNITO_DOMAIN}/oauth2/authorize`);
-  u.searchParams.set('client_id', COGNITO_CLIENT_ID);
+  const { domain, clientId, redirect } = resolveCognito();
+  if (!domain || !clientId) return null;
+  const u = new URL(`https://${domain}/oauth2/authorize`);
+  u.searchParams.set('client_id', clientId);
   u.searchParams.set('response_type', 'token');
   u.searchParams.set('scope', 'openid email');
-  u.searchParams.set('redirect_uri', COGNITO_REDIRECT);
+  u.searchParams.set('redirect_uri', redirect);
   return u.toString();
 }
 
@@ -62,9 +95,11 @@ export default function AdminHome() {
   const [events, setEvents] = useState<EventRow[]>([]);
   const [throughput, setThroughput] = useState(100);
   const [message, setMessage] = useState('');
+  const [apiBase, setApiBase] = useState('http://localhost:3001');
   const loginUrl = useMemo(() => hostedLoginUrl(), []);
 
   useEffect(() => {
+    setApiBase(resolveApiBase());
     const fromHash = parseHashToken();
     if (fromHash) {
       writeToken(fromHash);
@@ -84,11 +119,11 @@ export default function AdminHome() {
 
   async function refresh() {
     const [c, e] = await Promise.all([
-      fetch(`${API}/v1/capabilities`, { headers: authHeaders() }).then((r) => {
+      fetch(`${apiBase}/v1/capabilities`, { headers: authHeaders() }).then((r) => {
         if (!r.ok) throw new Error(`capabilities ${r.status}`);
         return r.json();
       }),
-      fetch(`${API}/v1/events`, { headers: authHeaders() }).then((r) => {
+      fetch(`${apiBase}/v1/events`, { headers: authHeaders() }).then((r) => {
         if (!r.ok) throw new Error(`events ${r.status}`);
         return r.json();
       }),
@@ -100,7 +135,7 @@ export default function AdminHome() {
   useEffect(() => {
     if (!token && !DEV_AUTH) return;
     refresh().catch((err) => setMessage(String(err)));
-  }, [token]);
+  }, [token, apiBase]);
 
   async function createEvent() {
     const body = {
@@ -113,7 +148,7 @@ export default function AdminHome() {
       bot_protection: 'off',
       return_url: 'https://example.com/checkout',
     };
-    const res = await fetch(`${API}/v1/events`, {
+    const res = await fetch(`${apiBase}/v1/events`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(body),
@@ -127,7 +162,7 @@ export default function AdminHome() {
   }
 
   async function liveOverride(eventId: string, patch: Record<string, unknown>) {
-    const res = await fetch(`${API}/v1/events/${eventId}`, {
+    const res = await fetch(`${apiBase}/v1/events/${eventId}`, {
       method: 'PUT',
       headers: authHeaders(),
       body: JSON.stringify(patch),
@@ -162,8 +197,8 @@ export default function AdminHome() {
           </p>
         ) : (
           <p style={{ color: '#8a5a00' }}>
-            Set NEXT_PUBLIC_COGNITO_DOMAIN and NEXT_PUBLIC_COGNITO_CLIENT_ID, or enable
-            NEXT_PUBLIC_ADMIN_DEV_AUTH=1 for local admin-api without JWT.
+            Deployed builds load Cognito settings from <code>/config.js</code>. For local, set
+            NEXT_PUBLIC_COGNITO_* or enable NEXT_PUBLIC_ADMIN_DEV_AUTH=1.
           </p>
         )}
         {DEV_AUTH ? (

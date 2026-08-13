@@ -14,6 +14,13 @@ echo "==> cargo clippy"
 
 echo "==> cargo test"
 (cd packages/core-rust && cargo test --workspace)
+
+echo "==> openapi smoke"
+test -f openapi/vazue-queue.yaml
+grep -q '^openapi:' openapi/vazue-queue.yaml
+grep -q '/v1/events/{eventId}/enroll' openapi/vazue-queue.yaml
+grep -q '/v1/events/{eventId}/status' openapi/vazue-queue.yaml
+
 echo "==> pnpm package tests"
 pnpm --filter @vazue/queue-cdk test
 pnpm --filter @vazue/queue-sdk test

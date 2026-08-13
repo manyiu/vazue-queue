@@ -150,13 +150,61 @@ export class VazueQueue extends Construct {
         signInAliases: { email: true },
         removalPolicy: removal,
       });
-      this.userPoolClient = this.userPool.addClient('AdminSpaClient', {
-        authFlows: { userSrp: true },
+
+      const domainPrefix = `vazue-${cdk.Names.uniqueId(this).slice(-8).toLowerCase()}`.replace(
+        /[^a-z0-9-]/g,
+        '',
+      );
+      const userPoolDomain = this.userPool.addDomain('HostedUi', {
+        cognitoDomain: { domainPrefix },
       });
+
+      let adminPortalUrl = 'http://localhost:5174/';
+      let adminDist: cloudfront.Distribution | undefined;
+      let adminBucket: s3.Bucket | undefined;
+
+      if (config.features.adminPortal) {
+        adminBucket = new s3.Bucket(this, 'AdminPortalBucket', {
+          blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+          encryption: s3.BucketEncryption.S3_MANAGED,
+          removalPolicy: removal,
+          autoDeleteObjects: removal === cdk.RemovalPolicy.DESTROY,
+        });
+        adminDist = new cloudfront.Distribution(this, 'AdminPortalDistribution', {
+          defaultBehavior: {
+            origin: origins.S3BucketOrigin.withOriginAccessControl(adminBucket),
+            viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          },
+          comment: `Vazue Queue admin for ${config.domainName}`,
+        });
+        adminPortalUrl = `https://${adminDist.distributionDomainName}/`;
+      }
+
+      const callbackUrls = [
+        adminPortalUrl,
+        'http://localhost:5174/',
+        'http://localhost:5174',
+      ];
+
+      this.userPoolClient = this.userPool.addClient('AdminSpaClient', {
+        authFlows: { userSrp: true, userPassword: true },
+        oAuth: {
+          flows: { implicitCodeGrant: true },
+          scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL],
+          callbackUrls,
+          logoutUrls: callbackUrls,
+        },
+        supportedIdentityProviders: [cognito.UserPoolClientIdentityProvider.COGNITO],
+      });
+
       new cdk.CfnOutput(this, 'AdminUserPoolId', { value: this.userPool.userPoolId });
       new cdk.CfnOutput(this, 'AdminUserPoolClientId', {
         value: this.userPoolClient.userPoolClientId,
       });
+      new cdk.CfnOutput(this, 'AdminCognitoDomain', {
+        value: `${userPoolDomain.domainName}.auth.${cdk.Stack.of(this).region}.amazoncognito.com`,
+      });
+      new cdk.CfnOutput(this, 'AdminCognitoRedirectUri', { value: adminPortalUrl });
 
       if (config.features.adminApi) {
         this.controlPlane = new QueueControlPlane(this, 'ControlPlane', {
@@ -168,20 +216,7 @@ export class VazueQueue extends Construct {
         });
       }
 
-      if (config.features.adminPortal) {
-        const adminBucket = new s3.Bucket(this, 'AdminPortalBucket', {
-          blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-          encryption: s3.BucketEncryption.S3_MANAGED,
-          removalPolicy: removal,
-          autoDeleteObjects: removal === cdk.RemovalPolicy.DESTROY,
-        });
-        const adminDist = new cloudfront.Distribution(this, 'AdminPortalDistribution', {
-          defaultBehavior: {
-            origin: origins.S3BucketOrigin.withOriginAccessControl(adminBucket),
-            viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-          },
-          comment: `Vazue Queue admin for ${config.domainName}`,
-        });
+      if (config.features.adminPortal && adminBucket && adminDist) {
         const adminOut = join(
           dirname(fileURLToPath(import.meta.url)),
           '..',
@@ -191,16 +226,25 @@ export class VazueQueue extends Construct {
           'admin-portal',
           'out',
         );
+        const adminCfg = {
+          adminApiUrl: this.controlPlane?.httpApi.apiEndpoint ?? '',
+          cognitoDomain: `${userPoolDomain.domainName}.auth.${cdk.Stack.of(this).region}.amazoncognito.com`,
+          cognitoClientId: this.userPoolClient.userPoolClientId,
+          cognitoRedirectUri: adminPortalUrl,
+        };
+        const runtimeCfg = `window.__VAZUE_ADMIN_CONFIG__=${JSON.stringify(adminCfg)};`;
+        const sources = [s3deploy.Source.data('config.js', runtimeCfg)];
         if (existsSync(adminOut)) {
-          new s3deploy.BucketDeployment(this, 'AdminPortalDeploy', {
-            sources: [s3deploy.Source.asset(adminOut)],
-            destinationBucket: adminBucket,
-            distribution: adminDist,
-            distributionPaths: ['/*'],
-          });
+          sources.unshift(s3deploy.Source.asset(adminOut));
         }
+        new s3deploy.BucketDeployment(this, 'AdminPortalDeploy', {
+          sources,
+          destinationBucket: adminBucket,
+          distribution: adminDist,
+          distributionPaths: ['/*'],
+        });
         new cdk.CfnOutput(this, 'AdminPortalUrl', {
-          value: `https://${adminDist.distributionDomainName}`,
+          value: adminPortalUrl.replace(/\/$/, ''),
         });
       }
     }

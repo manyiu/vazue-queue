@@ -247,6 +247,10 @@ impl DynamoDbStore {
             }
             visitor.admit_token = Some(token);
             visitor.status = VisitorStatus::Admitted;
+            platform::emit_usage(
+                platform::DeploymentProfile::from_env(),
+                &platform::UsageEvent::token_issued(tenant_id, event_id),
+            );
         }
 
         let serving = self.get_counter(event_id, "serving").await?;

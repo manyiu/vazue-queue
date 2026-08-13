@@ -313,6 +313,10 @@ impl InMemoryStore {
                 .map_err(|e| StoreError::Message(e.to_string()))?;
                 visitor.admit_token = Some(token);
                 visitor.status = VisitorStatus::Admitted;
+                platform::emit_usage(
+                    platform::DeploymentProfile::from_env(),
+                    &platform::UsageEvent::token_issued(tenant_id, event_id),
+                );
                 let pos = visitor.position;
                 let s = g.serving_counter.entry(ek.clone()).or_insert(0);
                 if *s < pos {
