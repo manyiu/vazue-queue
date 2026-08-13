@@ -79,6 +79,11 @@ export class QueueControlPlane extends Construct {
       integration,
     });
     this.httpApi.addRoutes({
+      path: '/ready',
+      methods: [apigwv2.HttpMethod.GET],
+      integration,
+    });
+    this.httpApi.addRoutes({
       path: '/v1/capabilities',
       methods: [apigwv2.HttpMethod.GET],
       integration,

@@ -52,6 +52,10 @@ export class QueueClient {
     return res.json() as Promise<EnrollResponse>;
   }
 
+  /**
+   * Poll position. When admitted=true, admit_token and return_url are set —
+   * redirect the visitor to return_url with vazue_token (do not drop the deep link).
+   */
   async status(eventId: string, requestId: string): Promise<StatusResponse> {
     const url = new URL(`${this.baseUrl}/v1/events/${eventId}/status`);
     url.searchParams.set('request_id', requestId);
@@ -91,6 +95,11 @@ export class QueueClient {
   async health(): Promise<{ status: string }> {
     const res = await this.fetchImpl(`${this.baseUrl}/health`);
     return res.json() as Promise<{ status: string }>;
+  }
+
+  async ready(): Promise<{ status: string; deployment?: string; tenantId?: string }> {
+    const res = await this.fetchImpl(`${this.baseUrl}/ready`);
+    return res.json() as Promise<{ status: string; deployment?: string; tenantId?: string }>;
   }
 }
 

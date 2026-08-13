@@ -161,6 +161,11 @@ export class QueueDataPlane extends Construct {
       integration: new integrations.HttpLambdaIntegration('HealthInt', this.statusFn),
     });
     this.httpApi.addRoutes({
+      path: '/ready',
+      methods: [apigwv2.HttpMethod.GET],
+      integration: new integrations.HttpLambdaIntegration('ReadyInt', this.statusFn),
+    });
+    this.httpApi.addRoutes({
       path: '/v1/events/{eventId}/enroll',
       methods: [apigwv2.HttpMethod.POST],
       integration: new integrations.HttpLambdaIntegration('EnrollInt', this.enrollFn),

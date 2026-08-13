@@ -23,7 +23,11 @@ pub async fn require_bearer(req: Request, next: Next) -> Response {
         return next.run(req).await;
     }
     let path = req.uri().path();
-    if path == "/health" || path.ends_with("/health") {
+    if path == "/health"
+        || path.ends_with("/health")
+        || path == "/ready"
+        || path.ends_with("/ready")
+    {
         return next.run(req).await;
     }
     let auth = req

@@ -46,6 +46,10 @@ fi
 
 cd "$ROOT/packages/core-rust"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/packages/core-rust/target}"
+# Keep zig cache inside the repo so sandboxed / restricted environments can write it.
+export ZIG_LOCAL_CACHE_DIR="${ZIG_LOCAL_CACHE_DIR:-$ROOT/.zig-cache}"
+export ZIG_GLOBAL_CACHE_DIR="${ZIG_GLOBAL_CACHE_DIR:-$ROOT/.zig-cache}"
+mkdir -p "$ZIG_LOCAL_CACHE_DIR"
 
 # Prefer arm64 Linux for Lambda; cargo-lambda --arm64 uses zig cross-compile when needed.
 BUILD_FLAGS=(--release --arm64)

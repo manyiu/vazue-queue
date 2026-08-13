@@ -23,6 +23,7 @@ pnpm verify        # alias for agent stop condition
 docker compose -f docker-compose.local.yml up -d
 cargo run -p queue-api --bin local-server
 # queue :3000 + admin :3001 (shared in-memory events; ADMIN_DEV_AUTH=1)
+npx vazue-queue cost --visitors 100000 --minutes 60
 ```
 
 ## Package boundaries

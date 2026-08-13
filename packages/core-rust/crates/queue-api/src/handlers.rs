@@ -1,5 +1,6 @@
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
+use axum::http::{header, HeaderValue, StatusCode};
+use axum::response::IntoResponse;
 use axum::Json;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -64,8 +65,8 @@ pub async fn status(
     State(state): State<AppState>,
     Path(event_id): Path<String>,
     Query(q): Query<StatusQuery>,
-) -> Result<Json<StatusResponse>, (StatusCode, Json<Value>)> {
-    state
+) -> Result<impl IntoResponse, (StatusCode, Json<Value>)> {
+    let resp = state
         .store
         .status(
             &state.tenant_id,
@@ -75,8 +76,15 @@ pub async fn status(
             state.use_rsa,
         )
         .await
-        .map(Json)
-        .map_err(map_err)
+        .map_err(map_err)?;
+    let max_age = resp.poll_after_seconds.clamp(1, 30);
+    let mut res = (StatusCode::OK, Json(resp)).into_response();
+    if let Ok(v) = HeaderValue::from_str(&format!(
+        "public, max-age={max_age}, stale-while-revalidate=1"
+    )) {
+        res.headers_mut().insert(header::CACHE_CONTROL, v);
+    }
+    Ok(res)
 }
 
 #[derive(Deserialize)]

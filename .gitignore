@@ -10,6 +10,7 @@ out/
 .env.*
 !.env.example
 target/
+.zig-cache/
 .cdk.staging/
 cdk.out/
 *.js.map

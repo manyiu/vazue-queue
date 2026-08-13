@@ -42,6 +42,25 @@ scripts/build-admin-portal.sh
 
 Without Lambda zips, CDK still synthesizes using Node 501 placeholders so tests pass; real deploys need the zips. On macOS, install **zig** (`brew install zig`) before `scripts/build-lambda-assets.sh`.
 
+## Cost estimate
+
+Rough us-east-1 list-price estimate for one event (not a quote):
+
+```bash
+npx vazue-queue cost --visitors 100000 --minutes 60 --poll 5
+```
+
+Assumes every visitor enrolls once and polls status for the whole window. Adaptive polling plus CloudFront status cache lower real spend.
+
+## Return URL
+
+Pass `return_url` on enroll (or set it on the event). GET status returns it when the visitor is admitted; the waiting room redirects there and appends `vazue_token`. Preserve the original deep link — do not replace it with a generic homepage.
+
+## Health
+
+- `GET /health` — liveness (data plane and admin)
+- `GET /ready` — readiness (`deployment`, `tenantId`); no auth
+
 ## Frontend assets for deploy
 
 ```bash

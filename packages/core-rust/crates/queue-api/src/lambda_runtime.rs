@@ -63,11 +63,22 @@ async fn load_signing_secret(conf: &aws_config::SdkConfig) -> Result<Vec<u8>, St
 }
 
 fn json_response(status: u16, body: impl serde::Serialize) -> Result<Response<Body>, Error> {
+    json_response_headers(status, body, &[("cache-control", "no-store")])
+}
+
+fn json_response_headers(
+    status: u16,
+    body: impl serde::Serialize,
+    extra: &[(&str, &str)],
+) -> Result<Response<Body>, Error> {
     let body = serde_json::to_vec(&body)?;
-    Ok(Response::builder()
+    let mut builder = Response::builder()
         .status(status)
-        .header("content-type", "application/json")
-        .body(Body::from(body))?)
+        .header("content-type", "application/json");
+    for (k, v) in extra {
+        builder = builder.header(*k, *v);
+    }
+    Ok(builder.body(Body::from(body))?)
 }
 
 pub async fn run_enroll() -> Result<(), Error> {
@@ -173,6 +184,21 @@ pub async fn run_status() -> Result<(), Error> {
 }
 
 async fn handle_status(state: Arc<AppState>, req: Request) -> Result<Response<Body>, Error> {
+    let path = req.uri().path();
+    if path == "/health" || path.ends_with("/health") {
+        return json_response(200, json!({ "status": "ok", "service": "vazue-queue" }));
+    }
+    if path == "/ready" || path.ends_with("/ready") {
+        return json_response(
+            200,
+            json!({
+                "status": "ready",
+                "deployment": state.profile,
+                "tenantId": state.tenant_id,
+            }),
+        );
+    }
+
     let event_id = path_param(&req, "eventId")
         .or_else(|| path_param(&req, "event_id"))
         .unwrap_or_default();
@@ -194,7 +220,11 @@ async fn handle_status(state: Arc<AppState>, req: Request) -> Result<Response<Bo
         )
         .await
     {
-        Ok(resp) => json_response(200, resp),
+        Ok(resp) => {
+            let max_age = resp.poll_after_seconds.clamp(1, 30);
+            let cache = format!("public, max-age={max_age}, stale-while-revalidate=1");
+            json_response_headers(200, resp, &[("cache-control", cache.as_str())])
+        }
         Err(e) => json_response(map_status(&e), json!({ "error": e.to_string() })),
     }
 }

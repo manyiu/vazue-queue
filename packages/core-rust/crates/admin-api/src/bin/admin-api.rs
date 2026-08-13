@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use admin_api::handlers::AdminState;
 use admin_api::{
-    create_event, create_room, get_capabilities, health, list_events, require_bearer, update_event,
-    DynamoDbAdminStore, InMemoryAdminStore,
+    create_event, create_room, get_capabilities, health, list_events, ready, require_bearer,
+    update_event, DynamoDbAdminStore, InMemoryAdminStore,
 };
 use aws_config::BehaviorVersion;
 use axum::middleware;
@@ -39,6 +39,7 @@ async fn main() -> Result<(), Error> {
 
     let app = Router::new()
         .route("/health", get(health))
+        .route("/ready", get(ready))
         .route("/v1/capabilities", get(get_capabilities))
         .route("/v1/rooms", post(create_room))
         .route("/v1/events", post(create_event).get(list_events))

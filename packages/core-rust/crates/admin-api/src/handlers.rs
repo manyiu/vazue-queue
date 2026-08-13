@@ -20,6 +20,15 @@ pub async fn health() -> Json<Value> {
     Json(json!({ "status": "ok", "service": "vazue-queue-admin" }))
 }
 
+pub async fn ready(State(state): State<AdminState>) -> Json<Value> {
+    Json(json!({
+        "status": "ready",
+        "service": "vazue-queue-admin",
+        "deployment": state.capabilities.deployment,
+        "tenantId": state.tenant_id,
+    }))
+}
+
 pub async fn get_capabilities(State(state): State<AdminState>) -> Json<Value> {
     Json(serde_json::to_value(&state.capabilities).unwrap_or(json!({})))
 }

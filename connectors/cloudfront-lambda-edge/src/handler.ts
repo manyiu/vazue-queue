@@ -20,7 +20,7 @@ function getConfig(): EdgeConfig {
     waitingRoomUrl: process.env.WAITING_ROOM_URL ?? 'https://queue.example.com/wait',
     jwtSecret: process.env.JWT_HMAC_SECRET ?? 'local-dev-hmac-secret-change-me',
     cookieName: process.env.QUEUE_COOKIE ?? 'vazue_token',
-    publicPaths: ['/health', '/favicon.ico'],
+    publicPaths: ['/health', '/ready', '/favicon.ico'],
   };
 }
 

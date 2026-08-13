@@ -74,6 +74,21 @@ export class VazueQueue extends Construct {
         webAclId = acl.attrArn;
       }
 
+      const statusCache = new cloudfront.CachePolicy(this, 'StatusPollCache', {
+        comment: 'Short TTL for GET status keyed by request_id',
+        defaultTtl: cdk.Duration.seconds(2),
+        minTtl: cdk.Duration.seconds(0),
+        maxTtl: cdk.Duration.seconds(30),
+        cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+        headerBehavior: cloudfront.CacheHeaderBehavior.none(),
+        queryStringBehavior: cloudfront.CacheQueryStringBehavior.allowList('request_id'),
+        enableAcceptEncodingGzip: true,
+        enableAcceptEncodingBrotli: true,
+      });
+      const apiOrigin = new origins.HttpOrigin(
+        cdk.Fn.select(2, cdk.Fn.split('/', this.dataPlane.httpApi.apiEndpoint)),
+      );
+
       this.distribution = new cloudfront.Distribution(this, 'WaitingRoomDistribution', {
         defaultBehavior: {
           origin: origins.S3BucketOrigin.withOriginAccessControl(this.waitingRoomBucket),
@@ -81,10 +96,15 @@ export class VazueQueue extends Construct {
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         },
         additionalBehaviors: {
+          '/v1/events/*/status': {
+            origin: apiOrigin,
+            viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
+            cachePolicy: statusCache,
+            allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+            originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+          },
           '/v1/*': {
-            origin: new origins.HttpOrigin(
-              cdk.Fn.select(2, cdk.Fn.split('/', this.dataPlane.httpApi.apiEndpoint)),
-            ),
+            origin: apiOrigin,
             viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
             cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
             allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,

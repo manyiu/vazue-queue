@@ -28,10 +28,20 @@ describe('VazueQueue presets', () => {
     template.resourceCountIs('AWS::Cognito::UserPool', 0);
   });
 
-  it('standard includes CloudFront', () => {
+  it('standard includes CloudFront status cache policy', () => {
     const template = synthPreset('standard');
     template.resourceCountIs('AWS::CloudFront::Distribution', 1);
     template.resourceCountIs('AWS::DynamoDB::Table', 7);
+    template.hasResourceProperties('AWS::CloudFront::CachePolicy', {
+      CachePolicyConfig: Match.objectLike({
+        DefaultTTL: 2,
+        ParametersInCacheKeyAndForwardedToOrigin: Match.objectLike({
+          QueryStringsConfig: Match.objectLike({
+            QueryStringBehavior: 'whitelist',
+          }),
+        }),
+      }),
+    });
   });
 
   it('full includes Cognito Hosted UI domain, WAF, admin HTTP API, and admin CloudFront', () => {

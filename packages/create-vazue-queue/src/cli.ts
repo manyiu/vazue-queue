@@ -3,6 +3,7 @@ import * as p from '@clack/prompts';
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { validateQueueCliConfig, type QueueCliConfig } from './config.js';
+import { estimateOssEventCost, formatCostReport } from './cost.js';
 
 type Config = QueueCliConfig;
 
@@ -219,7 +220,34 @@ function validateFile(path: string) {
   console.log('Config valid:', path);
 }
 
+function parseCostArgs(argv: string[]) {
+  let visitors = 100_000;
+  let minutes = 60;
+  let poll = 5;
+  let throughput = 100;
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--visitors') visitors = Number(argv[++i] ?? visitors);
+    else if (a === '--minutes') minutes = Number(argv[++i] ?? minutes);
+    else if (a === '--poll') poll = Number(argv[++i] ?? poll);
+    else if (a === '--throughput') throughput = Number(argv[++i] ?? throughput);
+    else if (a === '--help' || a === '-h') {
+      console.log(
+        'Usage: vazue-queue cost --visitors 100000 --minutes 60 [--poll 5] [--throughput 100]',
+      );
+      process.exit(0);
+    }
+  }
+  return { visitors, durationMinutes: minutes, pollSeconds: poll, throughputPerMinute: throughput };
+}
+
 async function main() {
+  if (process.argv[2] === 'cost') {
+    const est = estimateOssEventCost(parseCostArgs(process.argv.slice(3)));
+    console.log(formatCostReport(est));
+    return;
+  }
+
   const args = parseArgs(process.argv.slice(2));
   const cwd = process.cwd();
 

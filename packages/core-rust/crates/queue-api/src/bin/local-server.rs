@@ -6,7 +6,8 @@ use std::sync::Arc;
 use admin_api::handlers::AdminState;
 use admin_api::{
     create_event, create_room, get_capabilities, health as admin_health, list_events,
-    require_bearer, update_event, AdminError, AdminStore, InMemoryAdminStore, LiveOverrides, Room,
+    ready as admin_ready, require_bearer, update_event, AdminError, AdminStore, InMemoryAdminStore,
+    LiveOverrides, Room,
 };
 use async_trait::async_trait;
 use axum::middleware;
@@ -124,6 +125,7 @@ async fn main() {
 
     let admin_app = Router::new()
         .route("/health", get(admin_health))
+        .route("/ready", get(admin_ready))
         .route("/v1/capabilities", get(get_capabilities))
         .route("/v1/rooms", post(create_room))
         .route("/v1/events", post(create_event).get(list_events))
