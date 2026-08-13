@@ -7,6 +7,7 @@ info:
     Admit tokens are returned on GET status when the visitor is admitted.
   license:
     name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
   - url: http://localhost:3000
     description: Local data plane

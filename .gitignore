@@ -23,3 +23,5 @@ packages/cdk/assets/lambda/**
 *.tsbuildinfo
 .pnpm-store/
 load-test-report.json
+.tools/
+packages/sdk-java/target/

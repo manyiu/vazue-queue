@@ -15,6 +15,10 @@ pnpm test:local
 pnpm verify
 ```
 
+Go/Java SDK tests: install toolchains, or locally use Docker helpers
+(`bash scripts/sdk-go-test.sh`, `bash scripts/sdk-java-test.sh`). CI always uses
+native `setup-go` / `setup-java` — see `docs/sdks/compatibility.md`.
+
 ## OSS v1.0 definition of done
 
 Ship `@vazue/queue-cdk` **1.0.0** only when all of these are true:

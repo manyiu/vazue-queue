@@ -18,6 +18,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      # Native Go/JDK in Actions (local laptops use scripts/sdk-*-test.sh via Docker).
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+          cache: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
+          cache-dependency-path: packages/sdk-java/pom.xml
       - run: pnpm install --frozen-lockfile
       - run: chmod +x scripts/*.sh
       - run: bash scripts/check-publish-boundary.sh

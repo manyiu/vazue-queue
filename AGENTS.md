@@ -14,6 +14,17 @@ Vazue Queue is an OSS-first virtual waiting room on AWS. Publish only OSS packag
 - Both data and control planes use **API Gateway HTTP API**
 - Bot protection default: **off**
 
+## Toolchains: Docker local, native in GitHub Actions
+
+| Concern | Local | GitHub Actions |
+|---------|-------|----------------|
+| Node / pnpm / Rust | Native (or as you prefer) | `setup-node`, `dtolnay/rust-toolchain` |
+| Go / Java SDK tests | `bash scripts/sdk-*-test.sh` (Docker) if Go/JDK not installed | `actions/setup-go`, `actions/setup-java` — **never** Docker for these |
+| OpenAPI Generator stubs | `bash scripts/generate-sdks.sh` (Docker) | Same script (generator image only) |
+| DynamoDB Local | `docker compose -f docker-compose.local.yml up -d` | Not required for `local-server` (in-memory) |
+
+`scripts/verify.sh` refuses Docker fallbacks when `GITHUB_ACTIONS=true`.
+
 ## Commands
 
 ```bash
@@ -23,6 +34,8 @@ pnpm verify        # alias for agent stop condition
 docker compose -f docker-compose.local.yml up -d
 cargo run -p queue-api --bin local-server
 # queue :3000 + admin :3001 (shared in-memory events; ADMIN_DEV_AUTH=1)
+bash scripts/sdk-go-test.sh    # Docker Go tests
+bash scripts/sdk-java-test.sh  # Docker Java tests
 npx vazue-queue cost --visitors 100000 --minutes 60
 ```
 
@@ -34,6 +47,8 @@ npx vazue-queue cost --visitors 100000 --minutes 60
 | `packages/cdk` | `@vazue/queue-cdk` | Yes |
 | `packages/create-vazue-queue` | Scaffold + CLI wizard | Yes |
 | `packages/sdk-typescript` | `@vazue/queue-sdk` | Yes |
+| `packages/sdk-go` | Go client | Go module (not npm) |
+| `packages/sdk-java` | Java client | Maven (not npm) |
 | `packages/saas` | Stripe, plan-limits, SaaS CDK | **Never npm** |
 
 ## Stop condition

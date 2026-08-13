@@ -1,23 +1,22 @@
-# Generated Tier-1 SDKs
+# Generated Tier-1 SDKs (reference)
 
-TypeScript reference SDK: `@vazue/queue-sdk` (hand-written).
+**Supported clients** (hand-polished):
 
-Other languages are generated from `openapi/vazue-queue.yaml` via OpenAPI Generator in CI:
+| Language | Path | Package |
+|----------|------|---------|
+| TypeScript | `packages/sdk-typescript` | `@vazue/queue-sdk` |
+| Go | `packages/sdk-go` | `github.com/vazue/queue-go` |
+| Java | `packages/sdk-java` | `io.vazue:queue-sdk` |
 
-| Language | Package | Registry |
-|----------|---------|----------|
-| Python | `vazue-queue` | PyPI |
-| Go | `github.com/vazue/vazue-queue-go` | Go modules |
-| Java | `io.vazue:queue-sdk` | Maven Central |
-| C# | `Vazue.Queue` | NuGet |
-
-Minimum client runtimes: Node 20+, Python 3.10+, Go 1.22+, Java 11+, .NET 8+.
-
-Generate locally:
+Optional OpenAPI Generator stubs (not published; regenerate anytime):
 
 ```bash
-openapi-generator-cli generate -i openapi/vazue-queue.yaml -g python -o packages/sdk-python
-openapi-generator-cli generate -i openapi/vazue-queue.yaml -g go -o packages/sdk-go
-openapi-generator-cli generate -i openapi/vazue-queue.yaml -g java -o packages/sdk-java
-openapi-generator-cli generate -i openapi/vazue-queue.yaml -g csharp -o packages/sdk-csharp
+bash scripts/generate-sdks.sh
 ```
+
+Runs entirely in Docker (`openapitools/openapi-generator-cli:v7.14.0`) — no local Java
+install. The script feeds a temporary OAS 3.1.0 copy (generator does not yet accept 3.2);
+source of truth remains `openapi/vazue-queue.yaml`. Output: `packages/sdk-generated/{go,java}`
+(gitignored).
+
+Minimum client runtimes: Node 20+, Go 1.22+, Java 11+. See `docs/sdks/compatibility.md`.

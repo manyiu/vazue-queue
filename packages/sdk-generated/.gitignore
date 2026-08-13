@@ -1,0 +1,4 @@
+# Optional OpenAPI Generator output (regenerate with scripts/generate-sdks.sh)
+/go/
+/java/
+.openapi-3.1-for-gen.yaml
