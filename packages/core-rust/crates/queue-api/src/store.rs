@@ -452,4 +452,94 @@ mod tests {
         assert_eq!(a.request_id, b.request_id);
         assert_eq!(a.position, b.position);
     }
+
+    #[tokio::test]
+    async fn reaper_advances_serving_by_throughput() {
+        let store = InMemoryStore::new();
+        let keys = JwtKeys::from_hmac_secret(b"test-secret-key-32-bytes-long!!");
+        store
+            .ensure_event(
+                "t1",
+                EventConfig {
+                    event_id: "e1".into(),
+                    room_id: "r1".into(),
+                    throughput_per_minute: 30,
+                    paused: false,
+                    emergency_open: false,
+                    invite_only: false,
+                    bot_protection: BotProtectionMode::Off,
+                    return_url: None,
+                },
+            )
+            .await
+            .unwrap();
+        let enrolled = store
+            .enroll(
+                "t1",
+                EnrollRequest {
+                    event_id: "e1".into(),
+                    session_id: Some("s1".into()),
+                    return_url: None,
+                    invite_code: None,
+                    turnstile_token: None,
+                },
+                &keys,
+                false,
+            )
+            .await
+            .unwrap();
+        assert_eq!(enrolled.position, 1);
+        let before = store
+            .status("t1", "e1", &enrolled.request_id, &keys, false)
+            .await
+            .unwrap();
+        assert!(!before.admitted);
+        let advanced = store.reaper_tick("t1", "e1").await.unwrap();
+        assert!(advanced >= 30);
+        let after = store
+            .status("t1", "e1", &enrolled.request_id, &keys, false)
+            .await
+            .unwrap();
+        assert!(after.admitted);
+        assert!(after.admit_token.is_some());
+        assert!(after.serving >= 30);
+    }
+
+    #[tokio::test]
+    async fn paused_queue_rejects_enroll() {
+        let store = InMemoryStore::new();
+        let keys = JwtKeys::from_hmac_secret(b"test-secret-key-32-bytes-long!!");
+        store
+            .ensure_event(
+                "t1",
+                EventConfig {
+                    event_id: "e1".into(),
+                    room_id: "r1".into(),
+                    throughput_per_minute: 10,
+                    paused: true,
+                    emergency_open: false,
+                    invite_only: false,
+                    bot_protection: BotProtectionMode::Off,
+                    return_url: None,
+                },
+            )
+            .await
+            .unwrap();
+        let err = store
+            .enroll(
+                "t1",
+                EnrollRequest {
+                    event_id: "e1".into(),
+                    session_id: None,
+                    return_url: None,
+                    invite_code: None,
+                    turnstile_token: None,
+                },
+                &keys,
+                false,
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, StoreError::Conflict(_)));
+    }
 }

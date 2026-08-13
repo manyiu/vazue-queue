@@ -19,3 +19,4 @@ packages/cdk/assets/lambda/**
 !packages/cdk/assets/lambda/.gitkeep
 *.tsbuildinfo
 .pnpm-store/
+load-test-report.json

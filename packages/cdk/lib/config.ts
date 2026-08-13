@@ -50,6 +50,15 @@ export interface VazueQueueConfig {
       idempotentEnroll?: boolean;
     };
   };
+  waitingRoom?: {
+    brandName?: string;
+    message?: string;
+    logoUrl?: string;
+    accentColor?: string;
+    backgroundColor?: string;
+    locales?: string[];
+    defaultLocale?: string;
+  };
   tags?: Record<string, string>;
 }
 
@@ -64,6 +73,15 @@ export interface ResolvedConfig extends VazueQueueConfig {
     corsAllowedOrigins: string[];
     botProtection: Required<Pick<BotProtectionConfig, 'mode'>> & BotProtectionConfig;
     session: { cookieName: string; idempotentEnroll: boolean };
+  };
+  waitingRoom: {
+    brandName: string;
+    message: string;
+    logoUrl?: string;
+    accentColor?: string;
+    backgroundColor?: string;
+    locales: string[];
+    defaultLocale: string;
   };
 }
 
@@ -150,6 +168,16 @@ export function resolveConfig(input: VazueQueueConfig): ResolvedConfig {
         cookieName: input.security?.session?.cookieName ?? 'vazue_qid',
         idempotentEnroll: input.security?.session?.idempotentEnroll ?? true,
       },
+    },
+    waitingRoom: {
+      brandName: input.waitingRoom?.brandName ?? 'Vazue Queue',
+      message:
+        input.waitingRoom?.message ?? "You're in line. Please keep this tab open.",
+      logoUrl: input.waitingRoom?.logoUrl,
+      accentColor: input.waitingRoom?.accentColor,
+      backgroundColor: input.waitingRoom?.backgroundColor,
+      locales: input.waitingRoom?.locales ?? ['en'],
+      defaultLocale: input.waitingRoom?.defaultLocale ?? 'en',
     },
   };
 }

@@ -103,9 +103,36 @@ export class VazueQueue extends Construct {
         'waiting-room',
         'dist',
       );
+      const roomCfg = {
+        brandName: config.waitingRoom.brandName,
+        message: config.waitingRoom.message,
+        logoUrl: config.waitingRoom.logoUrl,
+        accent: config.waitingRoom.accentColor,
+        background: config.waitingRoom.backgroundColor,
+        turnstileSiteKey: config.security.botProtection.turnstileSiteKey,
+        botMode: config.security.botProtection.mode,
+      };
+      const configJs = `window.__VAZUE_CONFIG__=${JSON.stringify(roomCfg)};`;
       if (existsSync(waitingRoomDist)) {
         new s3deploy.BucketDeployment(this, 'WaitingRoomDeploy', {
-          sources: [s3deploy.Source.asset(waitingRoomDist)],
+          sources: [
+            s3deploy.Source.asset(waitingRoomDist),
+            s3deploy.Source.data('config.js', configJs),
+          ],
+          destinationBucket: this.waitingRoomBucket,
+          distribution: this.distribution,
+          distributionPaths: ['/*'],
+        });
+      } else {
+        // Synth-safe placeholder so first deploy still has branding config.
+        new s3deploy.BucketDeployment(this, 'WaitingRoomConfigOnly', {
+          sources: [
+            s3deploy.Source.data(
+              'index.html',
+              `<!doctype html><html><head><script src="/config.js"></script><title>${config.waitingRoom.brandName}</title></head><body><p>${config.waitingRoom.message}</p><p>Build apps/waiting-room and redeploy for the full UI.</p></body></html>`,
+            ),
+            s3deploy.Source.data('config.js', configJs),
+          ],
           destinationBucket: this.waitingRoomBucket,
           distribution: this.distribution,
           distributionPaths: ['/*'],
@@ -127,6 +154,9 @@ export class VazueQueue extends Construct {
         authFlows: { userSrp: true },
       });
       new cdk.CfnOutput(this, 'AdminUserPoolId', { value: this.userPool.userPoolId });
+      new cdk.CfnOutput(this, 'AdminUserPoolClientId', {
+        value: this.userPoolClient.userPoolClientId,
+      });
 
       if (config.features.adminApi) {
         this.controlPlane = new QueueControlPlane(this, 'ControlPlane', {
@@ -135,6 +165,42 @@ export class VazueQueue extends Construct {
           userPoolClient: this.userPoolClient,
           tables: this.dataPlane.tables,
           signingSecret: this.dataPlane.signingSecret,
+        });
+      }
+
+      if (config.features.adminPortal) {
+        const adminBucket = new s3.Bucket(this, 'AdminPortalBucket', {
+          blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+          encryption: s3.BucketEncryption.S3_MANAGED,
+          removalPolicy: removal,
+          autoDeleteObjects: removal === cdk.RemovalPolicy.DESTROY,
+        });
+        const adminDist = new cloudfront.Distribution(this, 'AdminPortalDistribution', {
+          defaultBehavior: {
+            origin: origins.S3BucketOrigin.withOriginAccessControl(adminBucket),
+            viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          },
+          comment: `Vazue Queue admin for ${config.domainName}`,
+        });
+        const adminOut = join(
+          dirname(fileURLToPath(import.meta.url)),
+          '..',
+          '..',
+          '..',
+          'apps',
+          'admin-portal',
+          'out',
+        );
+        if (existsSync(adminOut)) {
+          new s3deploy.BucketDeployment(this, 'AdminPortalDeploy', {
+            sources: [s3deploy.Source.asset(adminOut)],
+            destinationBucket: adminBucket,
+            distribution: adminDist,
+            distributionPaths: ['/*'],
+          });
+        }
+        new cdk.CfnOutput(this, 'AdminPortalUrl', {
+          value: `https://${adminDist.distributionDomainName}`,
         });
       }
     }

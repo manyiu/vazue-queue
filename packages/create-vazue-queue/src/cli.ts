@@ -93,6 +93,18 @@ async function wizard(defaults?: Partial<Config>): Promise<Config> {
     if (key) turnstileSiteKey = String(key);
   }
 
+  const brandName = await p.text({
+    message: 'Waiting room brand name',
+    initialValue: defaults?.waitingRoom?.brandName ?? 'Vazue Queue',
+  });
+  if (p.isCancel(brandName)) process.exit(0);
+  const waitingMessage = await p.text({
+    message: 'Waiting room visitor message',
+    initialValue:
+      defaults?.waitingRoom?.message ?? "You're in line. Please keep this tab open.",
+  });
+  if (p.isCancel(waitingMessage)) process.exit(0);
+
   const cfg: Config = {
     domainName: String(domainName),
     preset,
@@ -104,6 +116,10 @@ async function wizard(defaults?: Partial<Config>): Promise<Config> {
         mode: botMode,
         ...(turnstileSiteKey ? { turnstileSiteKey } : {}),
       },
+    },
+    waitingRoom: {
+      brandName: String(brandName),
+      message: String(waitingMessage),
     },
   };
 

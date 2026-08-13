@@ -5,11 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Vazue Queue</title>
     <link rel="stylesheet" href="/styles.css" />
+    <script src="/config.js"></script>
+    <script>
+      window.__VAZUE_CONFIG__ = window.__VAZUE_CONFIG__ || {};
+    </script>
   </head>
   <body>
     <main class="room">
+      <img id="logo" alt="" hidden width="120" height="40" />
       <h1 id="brand">Vazue Queue</h1>
       <p id="message">You're in line. Please keep this tab open.</p>
+      <div id="turnstile" hidden></div>
       <p class="stat">Position: <strong id="position">—</strong></p>
       <p class="stat">Estimated wait: <strong id="wait">—</strong> min</p>
       <p id="status" class="muted"></p>

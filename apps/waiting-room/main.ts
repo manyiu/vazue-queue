@@ -20,6 +20,28 @@ type StatusResponse = {
   return_url?: string;
 };
 
+type RoomTheme = {
+  brandName?: string;
+  message?: string;
+  logoUrl?: string;
+  accent?: string;
+  background?: string;
+  turnstileSiteKey?: string;
+  botMode?: string;
+};
+
+declare global {
+  interface Window {
+    __VAZUE_CONFIG__?: RoomTheme;
+    turnstile?: {
+      render: (
+        el: string | HTMLElement,
+        opts: { sitekey: string; callback: (token: string) => void },
+      ) => string;
+    };
+  }
+}
+
 function getCookie(name: string): string | undefined {
   const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
   return m ? decodeURIComponent(m[1]) : undefined;
@@ -40,7 +62,6 @@ function readSharedState(): { session_id?: string; request_id?: string } {
 function writeSharedState(state: { session_id: string; request_id: string }) {
   localStorage.setItem(STORAGE, JSON.stringify(state));
   setCookie(COOKIE, state.session_id);
-  // Broadcast to other tabs
   try {
     const ch = new BroadcastChannel('vazue-queue');
     ch.postMessage(state);
@@ -63,7 +84,87 @@ function returnUrl(): string | undefined {
   return new URLSearchParams(location.search).get('returnUrl') ?? undefined;
 }
 
-async function enroll(base: string, event: string): Promise<EnrollResponse> {
+function roomConfig(): RoomTheme {
+  const params = new URLSearchParams(location.search);
+  const fromWindow = window.__VAZUE_CONFIG__ ?? {};
+  return {
+    brandName: params.get('brand') ?? fromWindow.brandName ?? 'Vazue Queue',
+    message:
+      params.get('message') ??
+      fromWindow.message ??
+      "You're in line. Please keep this tab open.",
+    logoUrl: params.get('logo') ?? fromWindow.logoUrl,
+    accent: params.get('accent') ?? fromWindow.accent,
+    background: params.get('bg') ?? fromWindow.background,
+    turnstileSiteKey:
+      params.get('turnstileSiteKey') ??
+      fromWindow.turnstileSiteKey ??
+      (import.meta as any).env?.VITE_TURNSTILE_SITE_KEY,
+    botMode: params.get('botMode') ?? fromWindow.botMode ?? 'off',
+  };
+}
+
+function applyTheme(cfg: RoomTheme) {
+  const brand = document.getElementById('brand');
+  const message = document.getElementById('message');
+  if (brand) brand.textContent = cfg.brandName ?? 'Vazue Queue';
+  if (message) message.textContent = cfg.message ?? '';
+  if (cfg.accent) document.documentElement.style.setProperty('--accent', cfg.accent);
+  if (cfg.background) document.documentElement.style.setProperty('--bg', cfg.background);
+  if (cfg.logoUrl) {
+    const logo = document.getElementById('logo') as HTMLImageElement | null;
+    if (logo) {
+      logo.src = cfg.logoUrl;
+      logo.hidden = false;
+    }
+  }
+}
+
+function needsTurnstile(cfg: RoomTheme): boolean {
+  const mode = cfg.botMode ?? 'off';
+  return (
+    Boolean(cfg.turnstileSiteKey) &&
+    (mode === 'challenge_always' || mode === 'challenge_suspicious')
+  );
+}
+
+function loadTurnstile(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (window.turnstile) {
+      resolve();
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load Turnstile'));
+    document.head.appendChild(s);
+  });
+}
+
+async function obtainTurnstileToken(siteKey: string): Promise<string> {
+  await loadTurnstile();
+  const host = document.getElementById('turnstile');
+  if (!host) throw new Error('Missing #turnstile container');
+  host.hidden = false;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Turnstile timeout')), 60_000);
+    window.turnstile!.render(host, {
+      sitekey: siteKey,
+      callback: (token) => {
+        clearTimeout(timer);
+        resolve(token);
+      },
+    });
+  });
+}
+
+async function enroll(
+  base: string,
+  event: string,
+  turnstileToken?: string,
+): Promise<EnrollResponse> {
   const shared = readSharedState();
   const session = getCookie(COOKIE) ?? shared.session_id;
   const res = await fetch(`${base}/v1/events/${event}/enroll`, {
@@ -72,6 +173,7 @@ async function enroll(base: string, event: string): Promise<EnrollResponse> {
     body: JSON.stringify({
       session_id: session,
       return_url: returnUrl(),
+      turnstile_token: turnstileToken,
     }),
   });
   if (!res.ok) throw new Error(await res.text());
@@ -88,14 +190,19 @@ async function status(base: string, event: string, requestId: string): Promise<S
 
 function render(s: StatusResponse) {
   (document.getElementById('position') as HTMLElement).textContent = String(s.position);
-  (document.getElementById('wait') as HTMLElement).textContent =
-    Number.isFinite(s.wait_estimate_minutes) ? s.wait_estimate_minutes.toFixed(1) : '—';
+  (document.getElementById('wait') as HTMLElement).textContent = Number.isFinite(
+    s.wait_estimate_minutes,
+  )
+    ? s.wait_estimate_minutes.toFixed(1)
+    : '—';
   (document.getElementById('status') as HTMLElement).textContent = s.admitted
     ? 'Admitted — redirecting…'
     : `Status: ${s.status} · serving ${s.serving}`;
 }
 
 async function main() {
+  const cfg = roomConfig();
+  applyTheme(cfg);
   const base = apiBase();
   const event = eventId();
   const el = document.getElementById('status')!;
@@ -104,7 +211,12 @@ async function main() {
     const shared = readSharedState();
     let requestId = shared.request_id;
     if (!requestId) {
-      const enrolled = await enroll(base, event);
+      let token: string | undefined;
+      if (needsTurnstile(cfg) && cfg.turnstileSiteKey) {
+        el.textContent = 'Complete the challenge to join the queue…';
+        token = await obtainTurnstileToken(cfg.turnstileSiteKey);
+      }
+      const enrolled = await enroll(base, event, token);
       writeSharedState({ session_id: enrolled.session_id, request_id: enrolled.request_id });
       requestId = enrolled.request_id;
       render({

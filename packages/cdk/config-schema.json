@@ -96,6 +96,23 @@
     "tags": {
       "type": "object",
       "additionalProperties": { "type": "string" }
+    },
+    "waitingRoom": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Branding and visitor UX for the static waiting room",
+      "properties": {
+        "brandName": { "type": "string" },
+        "message": { "type": "string" },
+        "logoUrl": { "type": "string", "format": "uri" },
+        "accentColor": { "type": "string" },
+        "backgroundColor": { "type": "string" },
+        "locales": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "defaultLocale": { "type": "string" }
+      }
     }
   }
 }

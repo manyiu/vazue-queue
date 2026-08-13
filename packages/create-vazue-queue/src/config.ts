@@ -11,6 +11,13 @@ export type QueueCliConfig = {
   security?: {
     botProtection?: { mode?: string; turnstileSiteKey?: string };
   };
+  waitingRoom?: {
+    brandName?: string;
+    message?: string;
+    logoUrl?: string;
+    accentColor?: string;
+    backgroundColor?: string;
+  };
 };
 
 export function validateQueueCliConfig(raw: unknown): asserts raw is QueueCliConfig {

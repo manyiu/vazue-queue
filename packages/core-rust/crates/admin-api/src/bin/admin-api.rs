@@ -5,8 +5,9 @@ use std::sync::Arc;
 use admin_api::handlers::AdminState;
 use admin_api::{
     create_event, create_room, get_capabilities, health, list_events, update_event,
-    InMemoryAdminStore,
+    DynamoDbAdminStore, InMemoryAdminStore,
 };
+use aws_config::BehaviorVersion;
 use axum::routing::{get, post, put};
 use axum::Router;
 use lambda_http::{run, Error};
@@ -21,9 +22,18 @@ async fn main() -> Result<(), Error> {
         )
         .try_init();
 
+    let tenant_id = std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into());
+    let store: Arc<dyn admin_api::AdminStore> = if std::env::var("ROOMS_TABLE").is_ok() {
+        let conf = aws_config::load_defaults(BehaviorVersion::latest()).await;
+        let ddb = aws_sdk_dynamodb::Client::new(&conf);
+        Arc::new(DynamoDbAdminStore::from_env(ddb).map_err(|e| Error::from(e.to_string()))?)
+    } else {
+        Arc::new(InMemoryAdminStore::new())
+    };
+
     let state = AdminState {
-        store: Arc::new(InMemoryAdminStore::new()),
-        tenant_id: std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into()),
+        store,
+        tenant_id,
         capabilities: Capabilities::oss_full(),
     };
 

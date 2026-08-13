@@ -1,6 +1,26 @@
 #!/usr/bin/env bash
-# k6 load test scaffold — 100K pollers is run in CI RC with higher VUs.
-# Usage: k6 run scripts/load-test-status.js
+# Load test gate for status pollers.
+# Usage:
+#   bash scripts/load-test-100k.sh              # smoke (50 VUs)
+#   PROFILE=stress VUS=500 bash scripts/load-test-100k.sh
+#   PROFILE=rc VUS=1000 bash scripts/load-test-100k.sh
+# Full 100K concurrent pollers: PROFILE=rc VUS=100000 on distributed k6 / AWS DLTS.
 set -euo pipefail
-echo "See scripts/load-test-status.js — requires k6 installed"
-k6 run "$(dirname "$0")/load-test-status.js"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PROFILE="${PROFILE:-smoke}"
+export VUS="${VUS:-}"
+export QUEUE_API_URL="${QUEUE_API_URL:-http://localhost:3000}"
+export EVENT_ID="${EVENT_ID:-demo}"
+
+if ! command -v k6 >/dev/null 2>&1; then
+  echo "k6 is required: https://k6.io/docs/get-started/installation/"
+  exit 1
+fi
+
+echo "==> k6 profile=$PROFILE vus=${VUS:-default} api=$QUEUE_API_URL event=$EVENT_ID"
+k6 run "$ROOT/scripts/load-test-status.js"
+echo "==> wrote load-test-report.json (cwd)"
+if [[ -f load-test-report.json ]]; then
+  echo "SLO report:"
+  cat load-test-report.json
+fi

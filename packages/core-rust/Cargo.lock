@@ -13,6 +13,8 @@ name = "admin-api"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "aws-config",
+ "aws-sdk-dynamodb",
  "axum",
  "chrono",
  "lambda_http",
