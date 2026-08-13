@@ -32,6 +32,7 @@ path = "src/bin/enroll-worker.rs"
 [dependencies]
 queue-kernel = { workspace = true }
 platform = { workspace = true }
+admin-api = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

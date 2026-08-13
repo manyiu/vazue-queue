@@ -1,0 +1,40 @@
+name: Frontend assets
+on:
+  push:
+    paths:
+      - 'apps/waiting-room/**'
+      - 'apps/admin-portal/**'
+      - 'scripts/build-waiting-room.sh'
+      - 'scripts/build-admin-portal.sh'
+      - '.github/workflows/frontend-assets.yml'
+  pull_request:
+    paths:
+      - 'apps/waiting-room/**'
+      - 'apps/admin-portal/**'
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.14.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: chmod +x scripts/*.sh
+      - name: Build waiting room
+        run: scripts/build-waiting-room.sh
+      - name: Build admin portal (static export)
+        run: scripts/build-admin-portal.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: waiting-room-dist
+          path: apps/waiting-room/dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: admin-portal-out
+          path: apps/admin-portal/out

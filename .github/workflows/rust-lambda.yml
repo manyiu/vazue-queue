@@ -1,10 +1,21 @@
 name: Rust Lambda CI
 on:
   push:
-    paths: ['packages/core-rust/**', 'scripts/build-lambda-assets.sh']
+    paths:
+      - 'packages/core-rust/**'
+      - 'scripts/build-lambda-assets.sh'
+      - '.github/workflows/rust-lambda.yml'
   pull_request:
-    paths: ['packages/core-rust/**', 'scripts/build-lambda-assets.sh']
+    paths:
+      - 'packages/core-rust/**'
+      - 'scripts/build-lambda-assets.sh'
+      - '.github/workflows/rust-lambda.yml'
   workflow_dispatch:
+    inputs:
+      require_artifacts:
+        description: 'Fail if cargo-lambda zips are missing'
+        type: boolean
+        default: true
 jobs:
   cargo-lambda:
     runs-on: ubuntu-latest
@@ -13,18 +24,26 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-unknown-linux-gnu
+      - name: Install zig (cargo-lambda cross)
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
       - name: Install cargo-lambda
         run: pip install cargo-lambda
       - name: Unit tests
         working-directory: packages/core-rust
         run: cargo test --workspace
-      - name: Build Lambda assets (best-effort)
+      - name: Build Lambda assets
+        env:
+          REQUIRE_ARTIFACTS: ${{ github.event_name == 'workflow_dispatch' && inputs.require_artifacts && '1' || '0' }}
         run: |
           chmod +x scripts/build-lambda-assets.sh
-          scripts/build-lambda-assets.sh || true
+          scripts/build-lambda-assets.sh
       - name: Upload artifacts when present
         uses: actions/upload-artifact@v4
         with:
           name: vazue-lambda-zips
           path: packages/cdk/assets/lambda/*.zip
           if-no-files-found: warn
+      - name: Summarize assets
+        run: ls -la packages/cdk/assets/lambda || true

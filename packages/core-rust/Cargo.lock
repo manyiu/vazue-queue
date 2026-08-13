@@ -1944,6 +1944,7 @@ dependencies = [
 name = "queue-api"
 version = "0.1.0"
 dependencies = [
+ "admin-api",
  "async-trait",
  "aws-config",
  "aws-sdk-dynamodb",
