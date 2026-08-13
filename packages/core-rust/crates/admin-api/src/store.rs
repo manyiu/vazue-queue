@@ -50,6 +50,12 @@ pub trait AdminStore: Send + Sync {
     async fn create_room(&self, tenant_id: &str, room: Room) -> Result<Room, AdminError>;
     async fn get_room(&self, tenant_id: &str, room_id: &str) -> Result<Room, AdminError>;
     async fn list_rooms(&self, tenant_id: &str) -> Result<Vec<Room>, AdminError>;
+    async fn update_room(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+        room: Room,
+    ) -> Result<Room, AdminError>;
     async fn create_event(
         &self,
         tenant_id: &str,
@@ -115,6 +121,25 @@ impl AdminStore for InMemoryAdminStore {
             .filter(|(k, _)| k.starts_with(&prefix))
             .map(|(_, v)| v.clone())
             .collect())
+    }
+
+    async fn update_room(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+        mut room: Room,
+    ) -> Result<Room, AdminError> {
+        let mut g = self
+            .rooms
+            .lock()
+            .map_err(|e| AdminError::Message(e.to_string()))?;
+        let key = Self::key(tenant_id, room_id);
+        if !g.contains_key(&key) {
+            return Err(AdminError::NotFound);
+        }
+        room.room_id = room_id.to_string();
+        g.insert(key, room.clone());
+        Ok(room)
     }
 
     async fn create_event(
@@ -197,5 +222,22 @@ impl AdminStore for InMemoryAdminStore {
             emergency_open: e.emergency_open,
             dress_rehearsal: e.dress_rehearsal,
         })
+    }
+}
+
+impl EventStats {
+    pub fn to_csv(&self) -> String {
+        format!(
+            "event_id,serving,queue_depth,waiting,admitted,throughput_per_minute,paused,emergency_open,dress_rehearsal\n{},{},{},{},{},{},{},{},{}\n",
+            self.event_id,
+            self.serving,
+            self.queue_depth,
+            self.waiting,
+            self.admitted,
+            self.throughput_per_minute,
+            self.paused,
+            self.emergency_open,
+            self.dress_rehearsal
+        )
     }
 }

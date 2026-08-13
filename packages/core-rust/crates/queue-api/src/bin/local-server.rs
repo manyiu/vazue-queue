@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use admin_api::handlers::AdminState;
 use admin_api::{
-    create_event, create_room, event_stats, get_capabilities, health as admin_health, list_events,
-    list_rooms, ready as admin_ready, require_bearer, update_event, AdminError, AdminStore,
-    EventStats, InMemoryAdminStore, LiveOverrides, Room,
+    create_event, create_room, event_stats, export_event, get_capabilities, health as admin_health,
+    list_events, list_rooms, ready as admin_ready, require_bearer, update_event, update_room,
+    AdminError, AdminStore, EventStats, InMemoryAdminStore, LiveOverrides, Room,
 };
 use async_trait::async_trait;
 use axum::middleware;
@@ -40,6 +40,15 @@ impl AdminStore for BridgedAdminStore {
 
     async fn list_rooms(&self, tenant_id: &str) -> Result<Vec<Room>, AdminError> {
         self.admin.list_rooms(tenant_id).await
+    }
+
+    async fn update_room(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+        room: Room,
+    ) -> Result<Room, AdminError> {
+        self.admin.update_room(tenant_id, room_id, room).await
     }
 
     async fn create_event(
@@ -130,6 +139,20 @@ async fn main() {
         admin: InMemoryAdminStore::new(),
         queue: queue_store.clone(),
     });
+    let _ = admin_store
+        .create_room(
+            "default",
+            Room {
+                room_id: "default".into(),
+                name: "Default room".into(),
+                theme: serde_json::json!({
+                    "brandName": "Vazue Queue",
+                    "message": "You're in line. Please keep this tab open."
+                }),
+                queue: queue_kernel::QueueConfig::default(),
+            },
+        )
+        .await;
     let _ = admin_store.create_event("default", demo).await;
 
     let queue_state = AppState::local(queue_store, b"local-dev-hmac-secret-change-me");
@@ -155,9 +178,11 @@ async fn main() {
         .route("/ready", get(admin_ready))
         .route("/v1/capabilities", get(get_capabilities))
         .route("/v1/rooms", post(create_room).get(list_rooms))
+        .route("/v1/rooms/{room_id}", put(update_room))
         .route("/v1/events", post(create_event).get(list_events))
         .route("/v1/events/{event_id}", put(update_event))
         .route("/v1/events/{event_id}/stats", get(event_stats))
+        .route("/v1/events/{event_id}/export", get(export_event))
         .layer(middleware::from_fn(require_bearer))
         .layer(CorsLayer::permissive())
         .with_state(admin_state);

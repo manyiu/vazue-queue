@@ -198,6 +198,17 @@ impl AdminStore for DynamoDbAdminStore {
         Ok(rooms)
     }
 
+    async fn update_room(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+        mut room: Room,
+    ) -> Result<Room, AdminError> {
+        let _ = self.get_room(tenant_id, room_id).await?;
+        room.room_id = room_id.to_string();
+        self.create_room(tenant_id, room).await
+    }
+
     async fn create_event(
         &self,
         tenant_id: &str,

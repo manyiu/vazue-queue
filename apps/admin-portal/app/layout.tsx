@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Vazue Queue Admin',
+  description: 'Owner console for rooms, events, and live queue controls',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -11,7 +13,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Deployed admin SPA: CDK writes /config.js with Cognito + API endpoints. */}
         <script src="/config.js" />
       </head>
-      <body style={{ fontFamily: 'IBM Plex Sans, system-ui, sans-serif', margin: 0, background: '#f7f5f2', color: '#1a1a1a' }}>
+      <body>
+        <a className="skip-link" href="#main">
+          Skip to main content
+        </a>
         {children}
       </body>
     </html>

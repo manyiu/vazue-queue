@@ -97,6 +97,12 @@ export class QueueControlPlane extends Construct {
       authorizer: jwtAuthorizer,
     });
     this.httpApi.addRoutes({
+      path: '/v1/rooms/{roomId}',
+      methods: [apigwv2.HttpMethod.PUT],
+      integration,
+      authorizer: jwtAuthorizer,
+    });
+    this.httpApi.addRoutes({
       path: '/v1/events',
       methods: [apigwv2.HttpMethod.GET, apigwv2.HttpMethod.POST],
       integration,
@@ -110,6 +116,13 @@ export class QueueControlPlane extends Construct {
     });
     this.httpApi.addRoutes({
       path: '/v1/events/{eventId}/stats',
+      methods: [apigwv2.HttpMethod.GET],
+      integration,
+      authorizer: jwtAuthorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/v1/events/{eventId}/export',
       methods: [apigwv2.HttpMethod.GET],
       integration,
       authorizer: jwtAuthorizer,

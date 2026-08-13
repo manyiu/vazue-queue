@@ -1,0 +1,41 @@
+# Manual / nightly load-test gate (does not block PR CI).
+# Full 100K VUs needs distributed k6 or AWS DLTS — this job runs the RC profile at 200 VUs.
+name: Load test
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: k6 profile (smoke, stress, rc)
+        default: smoke
+      vus:
+        description: Virtual users
+        default: '50'
+  schedule:
+    - cron: '0 6 * * 1'
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Start local API
+        run: |
+          docker compose -f docker-compose.local.yml up -d || true
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run local-server
+        run: |
+          cargo run -p queue-api --bin local-server --manifest-path packages/core-rust/Cargo.toml &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/health && break
+            sleep 2
+          done
+        env:
+          CARGO_TARGET_DIR: packages/core-rust/target
+      - name: k6
+        run: PROFILE=${{ github.event.inputs.profile || 'smoke' }} VUS=${{ github.event.inputs.vus || '50' }} bash scripts/load-test-100k.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-test-report
+          path: load-test-report.json
+          if-no-files-found: ignore

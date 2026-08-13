@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use admin_api::handlers::AdminState;
 use admin_api::{
-    create_event, create_room, event_stats, get_capabilities, health, list_events, list_rooms,
-    ready, require_bearer, update_event, DynamoDbAdminStore, InMemoryAdminStore,
+    create_event, create_room, event_stats, export_event, get_capabilities, health, list_events,
+    list_rooms, ready, require_bearer, update_event, update_room, DynamoDbAdminStore,
+    InMemoryAdminStore,
 };
 use aws_config::BehaviorVersion;
 use axum::middleware;
@@ -42,11 +43,15 @@ async fn main() -> Result<(), Error> {
         .route("/ready", get(ready))
         .route("/v1/capabilities", get(get_capabilities))
         .route("/v1/rooms", post(create_room).get(list_rooms))
+        .route("/v1/rooms/{room_id}", put(update_room))
+        .route("/v1/rooms/{roomId}", put(update_room))
         .route("/v1/events", post(create_event).get(list_events))
         .route("/v1/events/{event_id}", put(update_event))
         .route("/v1/events/{eventId}", put(update_event))
         .route("/v1/events/{event_id}/stats", get(event_stats))
         .route("/v1/events/{eventId}/stats", get(event_stats))
+        .route("/v1/events/{event_id}/export", get(export_event))
+        .route("/v1/events/{eventId}/export", get(export_event))
         .layer(middleware::from_fn(require_bearer))
         .layer(CorsLayer::permissive())
         .with_state(state);

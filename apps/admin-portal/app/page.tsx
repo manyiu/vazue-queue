@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 type Caps = {
   deployment?: string;
@@ -9,6 +9,7 @@ type Caps = {
 
 type EventRow = {
   event_id: string;
+  room_id?: string;
   throughput_per_minute: number;
   paused: boolean;
   emergency_open: boolean;
@@ -27,6 +28,21 @@ type EventStats = {
   paused: boolean;
   emergency_open: boolean;
   dress_rehearsal: boolean;
+};
+
+type RoomTheme = {
+  brandName?: string;
+  message?: string;
+  logoUrl?: string;
+  accent?: string;
+  background?: string;
+};
+
+type RoomRow = {
+  room_id: string;
+  name: string;
+  theme: RoomTheme;
+  queue: { default_throughput_per_minute?: number };
 };
 
 type AdminRuntimeConfig = {
@@ -68,6 +84,12 @@ function resolveCognito() {
 }
 
 const DEV_AUTH = process.env.NEXT_PUBLIC_ADMIN_DEV_AUTH === '1';
+const card: CSSProperties = {
+  background: '#fff',
+  padding: '1rem',
+  borderRadius: 8,
+  marginBottom: '0.75rem',
+};
 
 function tokenStorageKey() {
   return 'vazue_admin_token';
@@ -107,9 +129,14 @@ export default function AdminHome() {
   const [token, setToken] = useState<string | null>(null);
   const [caps, setCaps] = useState<Caps | null>(null);
   const [events, setEvents] = useState<EventRow[]>([]);
+  const [rooms, setRooms] = useState<RoomRow[]>([]);
   const [stats, setStats] = useState<Record<string, EventStats>>({});
   const [throughput, setThroughput] = useState(100);
   const [dressRehearsal, setDressRehearsal] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardDismissed, setWizardDismissed] = useState(false);
+  const [wizardName, setWizardName] = useState('Default room');
+  const [wizardBrand, setWizardBrand] = useState('Vazue Queue');
   const [message, setMessage] = useState('');
   const [apiBase, setApiBase] = useState('http://localhost:3001');
   const loginUrl = useMemo(() => hostedLoginUrl(), []);
@@ -134,25 +161,30 @@ export default function AdminHome() {
   }, [token]);
 
   const refresh = useCallback(async () => {
-    const [c, e] = await Promise.all([
-      fetch(`${apiBase}/v1/capabilities`, { headers: authHeaders() }).then((r) => {
-        if (!r.ok) throw new Error(`capabilities ${r.status}`);
-        return r.json();
+    const [c, e, r] = await Promise.all([
+      fetch(`${apiBase}/v1/capabilities`, { headers: authHeaders() }).then((res) => {
+        if (!res.ok) throw new Error(`capabilities ${res.status}`);
+        return res.json();
       }),
-      fetch(`${apiBase}/v1/events`, { headers: authHeaders() }).then((r) => {
-        if (!r.ok) throw new Error(`events ${r.status}`);
-        return r.json();
+      fetch(`${apiBase}/v1/events`, { headers: authHeaders() }).then((res) => {
+        if (!res.ok) throw new Error(`events ${res.status}`);
+        return res.json();
       }),
+      fetch(`${apiBase}/v1/rooms`, { headers: authHeaders() }).then((res) =>
+        res.ok ? res.json() : [],
+      ),
     ]);
     setCaps(c);
     setEvents(e);
+    setRooms(r);
+    setWizardOpen(!wizardDismissed && (e as EventRow[]).length === 0);
     const next: Record<string, EventStats> = {};
     await Promise.all(
       (e as EventRow[]).map(async (ev) => {
         try {
           const s = await fetch(`${apiBase}/v1/events/${ev.event_id}/stats`, {
             headers: authHeaders(),
-          }).then((r) => (r.ok ? r.json() : null));
+          }).then((res) => (res.ok ? res.json() : null));
           if (s) next[ev.event_id] = s;
         } catch {
           /* ignore per-event stats failures */
@@ -160,7 +192,7 @@ export default function AdminHome() {
       }),
     );
     setStats(next);
-  }, [apiBase, authHeaders]);
+  }, [apiBase, authHeaders, wizardDismissed]);
 
   useEffect(() => {
     if (!token && !DEV_AUTH) return;
@@ -171,10 +203,10 @@ export default function AdminHome() {
     return () => window.clearInterval(id);
   }, [token, apiBase, refresh]);
 
-  async function createEvent() {
+  async function createEvent(roomId = rooms[0]?.room_id || 'default') {
     const body = {
       event_id: `evt-${Date.now()}`,
-      room_id: 'default',
+      room_id: roomId,
       throughput_per_minute: throughput,
       paused: false,
       emergency_open: false,
@@ -193,7 +225,48 @@ export default function AdminHome() {
       return;
     }
     setMessage('Event created');
+    setWizardOpen(false);
     await refresh();
+  }
+
+  async function finishWizard() {
+    const roomBody = {
+      room_id: 'default',
+      name: wizardName,
+      theme: { brandName: wizardBrand, message: "You're in line. Please keep this tab open." },
+      queue: { default_throughput_per_minute: throughput, counter_shards: 8 },
+    };
+    const roomRes = await fetch(`${apiBase}/v1/rooms`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(roomBody),
+    });
+    if (!roomRes.ok && roomRes.status !== 409) {
+      setMessage(await roomRes.text());
+      return;
+    }
+    await createEvent('default');
+  }
+
+  async function saveRoom(room: RoomRow) {
+    const res = await fetch(`${apiBase}/v1/rooms/${room.room_id}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        ...room,
+        queue: {
+          default_throughput_per_minute: room.queue.default_throughput_per_minute ?? 100,
+          counter_shards: 8,
+          token_ttl_seconds: 3600,
+          visitor_record_ttl_hours: 24,
+        },
+      }),
+    });
+    if (!res.ok) setMessage(await res.text());
+    else {
+      setMessage('Room saved');
+      await refresh();
+    }
   }
 
   async function liveOverride(eventId: string, patch: Record<string, unknown>) {
@@ -209,10 +282,29 @@ export default function AdminHome() {
     }
   }
 
+  async function exportCsv(eventId: string) {
+    const res = await fetch(`${apiBase}/v1/events/${eventId}/export`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) {
+      setMessage(await res.text());
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${eventId}-stats.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setMessage(`Downloaded ${eventId}-stats.csv`);
+  }
+
   function logout() {
     writeToken(null);
     setToken(null);
     setEvents([]);
+    setRooms([]);
     setCaps(null);
     setStats({});
   }
@@ -224,9 +316,9 @@ export default function AdminHome() {
 
   if (!token && !DEV_AUTH) {
     return (
-      <main style={{ maxWidth: 520, margin: '0 auto', padding: '3rem 1.25rem' }}>
+      <main id="main" style={{ maxWidth: 520, margin: '0 auto', padding: '3rem 1.25rem' }}>
         <h1 style={{ fontSize: '2.4rem', letterSpacing: '-0.03em' }}>Vazue Queue</h1>
-        <p style={{ color: '#5c5c5c' }}>Sign in with Cognito to manage rooms and events.</p>
+        <p style={{ color: '#444' }}>Sign in with Cognito to manage rooms and events.</p>
         {loginUrl ? (
           <p>
             <a href={loginUrl}>Sign in with Cognito</a>
@@ -247,14 +339,14 @@ export default function AdminHome() {
   }
 
   return (
-    <main style={{ maxWidth: 820, margin: '0 auto', padding: '3rem 1.25rem' }}>
+    <main id="main" style={{ maxWidth: 820, margin: '0 auto', padding: '3rem 1.25rem' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'baseline' }}>
         <div>
           <h1 style={{ fontSize: '2.4rem', letterSpacing: '-0.03em', marginBottom: '0.25rem' }}>
             Vazue Queue
           </h1>
-          <p style={{ color: '#5c5c5c', marginTop: 0 }}>
-            Owner admin — live throttle, pause, dress rehearsal
+          <p style={{ color: '#444', marginTop: 0 }}>
+            Owner admin — rooms, live throttle, dress rehearsal
             {caps?.deployment ? ` · ${caps.deployment}` : ''}
           </p>
         </div>
@@ -263,40 +355,135 @@ export default function AdminHome() {
         </button>
       </header>
 
-      <section style={{ marginTop: '2rem' }}>
-        <h2>Create event</h2>
-        <label>
-          Throughput / min{' '}
+      {wizardOpen ? (
+        <section aria-labelledby="wizard-heading" style={{ ...card, marginTop: '2rem' }}>
+          <h2 id="wizard-heading">First event</h2>
+          <p>Create a room and a practice event. You can change throughput later without redeploying.</p>
+          <div style={{ display: 'grid', gap: 12, maxWidth: 420 }}>
+            <label htmlFor="wizard-name">Room name</label>
+            <input
+              id="wizard-name"
+              value={wizardName}
+              onChange={(e) => setWizardName(e.target.value)}
+            />
+            <label htmlFor="wizard-brand">Waiting-room brand</label>
+            <input
+              id="wizard-brand"
+              value={wizardBrand}
+              onChange={(e) => setWizardBrand(e.target.value)}
+            />
+            <label htmlFor="wizard-throughput">Throughput / min</label>
+            <input
+              id="wizard-throughput"
+              type="number"
+              min={1}
+              max={caps?.limits?.max_throughput_per_minute ?? 10000}
+              value={throughput}
+              onChange={(e) => setThroughput(Number(e.target.value))}
+            />
+            <label htmlFor="wizard-rehearsal">
+              <input
+                id="wizard-rehearsal"
+                type="checkbox"
+                checked={dressRehearsal}
+                onChange={(e) => setDressRehearsal(e.target.checked)}
+              />{' '}
+              Start in dress rehearsal
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => void finishWizard()}>
+                Create room and event
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWizardDismissed(true);
+                  setWizardOpen(false);
+                }}
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      <section aria-labelledby="rooms-heading" style={{ marginTop: '2rem' }}>
+        <h2 id="rooms-heading">Rooms</h2>
+        {rooms.length === 0 ? <p>No rooms yet. Use First event above or create an event.</p> : null}
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {rooms.map((room, idx) => (
+            <li key={room.room_id} style={card}>
+              <strong>{room.room_id}</strong>
+              <div style={{ display: 'grid', gap: 8, marginTop: 8, maxWidth: 480 }}>
+                <label htmlFor={`room-name-${idx}`}>Name</label>
+                <input
+                  id={`room-name-${idx}`}
+                  defaultValue={room.name}
+                  onBlur={(e) => {
+                    const name = e.target.value;
+                    if (name && name !== room.name) void saveRoom({ ...room, name });
+                  }}
+                />
+                <label htmlFor={`room-brand-${idx}`}>Brand</label>
+                <input
+                  id={`room-brand-${idx}`}
+                  defaultValue={room.theme?.brandName ?? ''}
+                  onBlur={(e) => {
+                    const brandName = e.target.value;
+                    if (brandName !== (room.theme?.brandName ?? '')) {
+                      void saveRoom({ ...room, theme: { ...room.theme, brandName } });
+                    }
+                  }}
+                />
+                <label htmlFor={`room-message-${idx}`}>Visitor message</label>
+                <input
+                  id={`room-message-${idx}`}
+                  defaultValue={room.theme?.message ?? ''}
+                  onBlur={(e) => {
+                    const msg = e.target.value;
+                    if (msg !== (room.theme?.message ?? '')) {
+                      void saveRoom({ ...room, theme: { ...room.theme, message: msg } });
+                    }
+                  }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="create-heading" style={{ marginTop: '2rem' }}>
+        <h2 id="create-heading">Create event</h2>
+        <label htmlFor="create-throughput">Throughput / min</label>{' '}
+        <input
+          id="create-throughput"
+          type="number"
+          value={throughput}
+          onChange={(e) => setThroughput(Number(e.target.value))}
+          max={caps?.limits?.max_throughput_per_minute ?? 10000}
+        />{' '}
+        <label htmlFor="create-rehearsal">
           <input
-            type="number"
-            value={throughput}
-            onChange={(e) => setThroughput(Number(e.target.value))}
-            max={caps?.limits?.max_throughput_per_minute ?? 10000}
-          />
-        </label>{' '}
-        <label style={{ marginLeft: 12 }}>
-          <input
+            id="create-rehearsal"
             type="checkbox"
             checked={dressRehearsal}
             onChange={(e) => setDressRehearsal(e.target.checked)}
           />{' '}
           Dress rehearsal
         </label>{' '}
-        <button type="button" onClick={createEvent}>
+        <button type="button" onClick={() => void createEvent()}>
           Create
         </button>
       </section>
 
-      <section style={{ marginTop: '2rem' }}>
-        <h2>Events</h2>
+      <section aria-labelledby="events-heading" style={{ marginTop: '2rem' }}>
+        <h2 id="events-heading">Events</h2>
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {events.map((ev) => {
             const s = stats[ev.event_id];
             return (
-              <li
-                key={ev.event_id}
-                style={{ background: '#fff', padding: '1rem', borderRadius: 8, marginBottom: '0.75rem' }}
-              >
+              <li key={ev.event_id} style={card}>
                 <strong>{ev.event_id}</strong>
                 <div>
                   {ev.throughput_per_minute}/min · paused={String(ev.paused)} · bots=
@@ -311,9 +498,10 @@ export default function AdminHome() {
                   </div>
                 ) : null}
                 <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <label>
+                  <label htmlFor={`throttle-${ev.event_id}`}>
                     Throttle{' '}
                     <input
+                      id={`throttle-${ev.event_id}`}
                       type="number"
                       defaultValue={ev.throughput_per_minute}
                       min={1}
@@ -332,9 +520,7 @@ export default function AdminHome() {
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
-                      liveOverride(ev.event_id, { emergency_open: !ev.emergency_open })
-                    }
+                    onClick={() => liveOverride(ev.event_id, { emergency_open: !ev.emergency_open })}
                   >
                     {ev.emergency_open ? 'Close floodgates' : 'Open floodgates'}
                   </button>
@@ -352,17 +538,22 @@ export default function AdminHome() {
                   >
                     {ev.invite_only ? 'Open enroll' : 'Invite only'}
                   </button>
-                  <select
-                    value={ev.bot_protection}
-                    onChange={(e) =>
-                      liveOverride(ev.event_id, { bot_protection: e.target.value })
-                    }
-                  >
-                    <option value="off">Bots off</option>
-                    <option value="rate_limit_only">Rate limit</option>
-                    <option value="challenge_suspicious">CAPTCHA suspicious</option>
-                    <option value="challenge_always">CAPTCHA always</option>
-                  </select>
+                  <label htmlFor={`bots-${ev.event_id}`}>
+                    Bot protection
+                    <select
+                      id={`bots-${ev.event_id}`}
+                      value={ev.bot_protection}
+                      onChange={(e) => liveOverride(ev.event_id, { bot_protection: e.target.value })}
+                    >
+                      <option value="off">Off</option>
+                      <option value="rate_limit_only">Rate limit</option>
+                      <option value="challenge_suspicious">CAPTCHA suspicious</option>
+                      <option value="challenge_always">CAPTCHA always</option>
+                    </select>
+                  </label>
+                  <button type="button" onClick={() => void exportCsv(ev.event_id)}>
+                    Export CSV
+                  </button>
                 </div>
               </li>
             );
@@ -370,7 +561,11 @@ export default function AdminHome() {
         </ul>
       </section>
 
-      {message ? <p role="status">{message}</p> : null}
+      {message ? (
+        <p role="status" aria-live="polite">
+          {message}
+        </p>
+      ) : null}
     </main>
   );
 }

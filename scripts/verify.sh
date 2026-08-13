@@ -22,6 +22,8 @@ grep -q '/v1/events/{eventId}/enroll' openapi/vazue-queue.yaml
 grep -q '/v1/events/{eventId}/status' openapi/vazue-queue.yaml
 grep -q '/ready' openapi/vazue-queue.yaml
 grep -q 'return_url' openapi/vazue-queue.yaml
+grep -q '/v1/events/{eventId}/export' openapi/vazue-queue.yaml
+grep -q '/v1/rooms/{roomId}' openapi/vazue-queue.yaml
 
 echo "==> pnpm package tests"
 pnpm --filter @vazue/queue-cdk test

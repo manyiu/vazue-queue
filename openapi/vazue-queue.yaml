@@ -149,6 +149,23 @@ paths:
       responses:
         '201':
           description: Created
+  /v1/rooms/{roomId}:
+    put:
+      operationId: updateRoom
+      tags: [Management]
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Room'
+      responses:
+        '200':
+          description: Updated room theme and queue defaults
   /v1/events:
     get:
       operationId: listEvents
@@ -194,6 +211,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EventStats'
+  /v1/events/{eventId}/export:
+    get:
+      operationId: exportEventStats
+      tags: [Management]
+      parameters:
+        - $ref: '#/components/parameters/eventId'
+      responses:
+        '200':
+          description: Post-event CSV of queue counters (waiting, serving, admitted)
+          content:
+            text/csv:
+              schema:
+                type: string
 components:
   parameters:
     eventId:

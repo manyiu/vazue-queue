@@ -25,6 +25,7 @@ pub struct VisitorRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct QueueConfig {
     pub default_throughput_per_minute: u32,
     pub counter_shards: u32,

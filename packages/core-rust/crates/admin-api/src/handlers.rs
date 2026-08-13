@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::http::{header, HeaderValue, StatusCode};
+use axum::response::IntoResponse;
 use axum::Json;
 use platform::Capabilities;
 use queue_kernel::EventConfig;
@@ -97,6 +98,28 @@ pub async fn list_rooms(
         .map_err(map_err)
 }
 
+pub async fn update_room(
+    State(state): State<AdminState>,
+    Path(room_id): Path<String>,
+    Json(mut room): Json<Room>,
+) -> Result<Json<Room>, (StatusCode, Json<Value>)> {
+    state
+        .capabilities
+        .check_queue_limits(
+            Some(room.queue.counter_shards),
+            Some(room.queue.default_throughput_per_minute),
+        )
+        .map_err(limit_err)?;
+    room.room_id = room_id;
+    let id = room.room_id.clone();
+    state
+        .store
+        .update_room(&state.tenant_id, &id, room)
+        .await
+        .map(Json)
+        .map_err(map_err)
+}
+
 pub async fn event_stats(
     State(state): State<AdminState>,
     Path(event_id): Path<String>,
@@ -107,6 +130,28 @@ pub async fn event_stats(
         .await
         .map(Json)
         .map_err(map_err)
+}
+
+pub async fn export_event(
+    State(state): State<AdminState>,
+    Path(event_id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, Json<Value>)> {
+    let stats = state
+        .store
+        .event_stats(&state.tenant_id, &event_id)
+        .await
+        .map_err(map_err)?;
+    let csv = stats.to_csv();
+    let mut res = (StatusCode::OK, csv).into_response();
+    res.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/csv; charset=utf-8"),
+    );
+    if let Ok(v) = HeaderValue::from_str(&format!("attachment; filename=\"{event_id}-stats.csv\""))
+    {
+        res.headers_mut().insert(header::CONTENT_DISPOSITION, v);
+    }
+    Ok(res)
 }
 
 pub async fn update_event(
@@ -204,5 +249,63 @@ mod tests {
         };
         let err = create_room(State(state), Json(room)).await.unwrap_err();
         assert_eq!(err.0, StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn update_room_replaces_theme() {
+        let state = AdminState {
+            store: Arc::new(InMemoryAdminStore::new()),
+            tenant_id: "t1".into(),
+            capabilities: Capabilities::oss_full(),
+        };
+        let room = Room {
+            room_id: "r1".into(),
+            name: "Room".into(),
+            theme: json!({ "brandName": "Old" }),
+            queue: QueueConfig::default(),
+        };
+        let _ = create_room(State(state.clone()), Json(room)).await.unwrap();
+        let updated = Room {
+            room_id: "r1".into(),
+            name: "Room".into(),
+            theme: json!({ "brandName": "New" }),
+            queue: QueueConfig::default(),
+        };
+        let ok = update_room(State(state), Path("r1".into()), Json(updated))
+            .await
+            .unwrap();
+        assert_eq!(ok.theme["brandName"], "New");
+    }
+
+    #[tokio::test]
+    async fn export_event_csv_includes_event_id() {
+        let state = AdminState {
+            store: Arc::new(InMemoryAdminStore::new()),
+            tenant_id: "t1".into(),
+            capabilities: Capabilities::oss_full(),
+        };
+        let event = EventConfig {
+            event_id: "e1".into(),
+            room_id: "r1".into(),
+            throughput_per_minute: 50,
+            paused: false,
+            emergency_open: false,
+            invite_only: false,
+            dress_rehearsal: true,
+            bot_protection: BotProtectionMode::Off,
+            return_url: None,
+        };
+        let _ = create_event(State(state.clone()), Json(event))
+            .await
+            .unwrap();
+        let res = export_event(State(state), Path("e1".into()))
+            .await
+            .unwrap()
+            .into_response();
+        assert_eq!(res.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(res.into_body(), 1024).await.unwrap();
+        let csv = String::from_utf8(bytes.to_vec()).unwrap();
+        assert!(csv.contains("e1"));
+        assert!(csv.contains("dress_rehearsal"));
     }
 }
