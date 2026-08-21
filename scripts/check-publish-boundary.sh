@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Fail if commercial SaaS packages would be published to npm.
+# Fail if commercial SaaS packages would be published to npm,
+# or if any package outside the OSS allow-list declares public publishConfig.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -38,6 +39,22 @@ if grep -R --include='package.json' -l '"publishConfig"' packages/saas 2>/dev/nu
   echo "ERROR: packages/saas must not declare publishConfig"
   fail=1
 fi
+
+# Only allow-listed packages may declare public publishConfig.
+while IFS= read -r pkg; do
+  name=$(node -e "console.log(require('./$pkg').name)")
+  access=$(node -e "const p=require('./$pkg'); console.log(p.publishConfig&&p.publishConfig.access||'')")
+  if [[ "$access" == "public" ]]; then
+    allowed=0
+    for a in "${ALLOWED_PUBLISH[@]}"; do
+      if [[ "$name" == "$a" ]]; then allowed=1; break; fi
+    done
+    if [[ "$allowed" -ne 1 ]]; then
+      echo "ERROR: $name has publishConfig.access=public but is not in the OSS allow-list"
+      fail=1
+    fi
+  fi
+done < <(find packages connectors apps -name package.json 2>/dev/null | grep -v node_modules)
 
 if [[ "$fail" -ne 0 ]]; then
   exit 1

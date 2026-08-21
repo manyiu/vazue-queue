@@ -9,9 +9,9 @@ Hand-polished clients are the supported SDKs. OpenAPI Generator stubs under
 | Go | `github.com/vazue/queue-go` | Go 1.22+ | `bash scripts/sdk-go-test.sh` (Docker) | `actions/setup-go` + `go test` |
 | Java | `io.vazue:queue-sdk` | Java 11+ | `bash scripts/sdk-java-test.sh` (Docker) | `actions/setup-java` + `mvn test` |
 
-**Policy:** Docker for local convenience when Go/JDK are not installed. Native
-toolchains in GitHub Actions (faster, cacheable). `scripts/verify.sh` never uses
-Docker when `GITHUB_ACTIONS=true`.
+**Policy:** Docker for local convenience (`scripts/sdk-*-test.sh`; `pnpm verify`
+prefers Docker locally). Native toolchains in GitHub Actions (faster, cacheable).
+`scripts/verify.sh` never uses Docker when `GITHUB_ACTIONS=true`.
 
 Optional reference stubs (Docker generator image — OK in CI and local):
 

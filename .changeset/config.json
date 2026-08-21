@@ -13,6 +13,9 @@
     "@vazue/saas-cdk",
     "@vazue/waiting-room",
     "@vazue/admin-portal",
-    "vazue-queue-example"
+    "@vazue/landing",
+    "@vazue/queue-edge-cloudfront",
+    "vazue-queue-example",
+    "vazue-queue-with-existing-cloudfront"
   ]
 }

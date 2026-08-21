@@ -28,7 +28,9 @@ pnpm --filter @vazue/waiting-room dev
 | `@vazue/queue-sdk` | TypeScript client |
 | `github.com/vazue/queue-go` | Go client (local Docker: `scripts/sdk-go-test.sh`; CI: native Go) |
 | `io.vazue:queue-sdk` | Java 11+ client (local Docker: `scripts/sdk-java-test.sh`; CI: native Maven) |
-| `@vazue/queue-edge-cloudfront` | Lambda@Edge connector |
+| `@vazue/queue-edge-cloudfront` | Lambda@Edge connector (private; vendored via CDK) |
+
+Marketing landing source: `apps/landing` (target host `queue.vazue.com`).
 
 `packages/saas/` is commercial and **not** published.
 

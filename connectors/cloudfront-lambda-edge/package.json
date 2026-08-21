@@ -14,13 +14,11 @@
   "engines": {
     "node": ">=20"
   },
+  "private": true,
   "devDependencies": {
     "typescript": "^5.9.2",
     "@types/node": "^24.2.0",
     "vitest": "^3.2.4",
     "@types/aws-lambda": "^8.10.152"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }

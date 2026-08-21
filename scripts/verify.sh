@@ -46,19 +46,21 @@ if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
   run_go_tests
   run_java_tests
 else
-  if command -v go >/dev/null 2>&1; then
-    run_go_tests
-  elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  # Local: prefer Docker helpers so laptops need no Go/JDK install.
+  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     bash scripts/sdk-go-test.sh
-  else
-    echo "skip Go SDK: install go, or start Docker and use scripts/sdk-go-test.sh"
-  fi
-  if command -v mvn >/dev/null 2>&1; then
-    run_java_tests
-  elif command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     bash scripts/sdk-java-test.sh
   else
-    echo "skip Java SDK: install Maven/JDK 11+, or start Docker and use scripts/sdk-java-test.sh"
+    if command -v go >/dev/null 2>&1; then
+      run_go_tests
+    else
+      echo "skip Go SDK: start Docker (scripts/sdk-go-test.sh) or install go"
+    fi
+    if command -v mvn >/dev/null 2>&1; then
+      run_java_tests
+    else
+      echo "skip Java SDK: start Docker (scripts/sdk-java-test.sh) or install Maven/JDK 11+"
+    fi
   fi
 fi
 

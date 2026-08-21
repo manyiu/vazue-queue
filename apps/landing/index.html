@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vazue Queue — OSS virtual waiting room on AWS</title>
+    <meta
+      name="description"
+      content="Self-host a fair virtual waiting room on your AWS account. Open source CDK, Rust data plane, and admit-token SDKs."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,700&family=Manrope:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true">
+      <div class="grid"></div>
+      <div class="queue-lane">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span>
+      </div>
+    </div>
+
+    <main class="hero">
+      <p class="brand">Vazue Queue</p>
+      <h1>A fair line for flash demand — on your AWS bill.</h1>
+      <p class="lede">
+        OSS virtual waiting room: CDK deploy, Rust enroll/status, admit tokens your origin can verify.
+      </p>
+      <div class="cta">
+        <a class="primary" href="https://github.com/vazue/vazue-queue">View on GitHub</a>
+        <a class="secondary" href="https://www.npmjs.com/package/@vazue/queue-cdk">npm packages</a>
+      </div>
+    </main>
+
+    <script>
+      const lane = document.querySelector('.queue-lane');
+      if (lane && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        lane.classList.add('is-live');
+      }
+    </script>
+  </body>
+</html>
