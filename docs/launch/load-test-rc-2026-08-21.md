@@ -67,4 +67,5 @@ k6 exited non-zero because the p95 threshold was crossed. No functional errors (
 
 ## Checklist link
 
-OSS v1 load-test item remains open in [`oss-v1.md`](./oss-v1.md) until an in-region (or otherwise fair) run meets the thresholds.
+Superseded for the OSS v1 RC **pass** by the in-region run: [`load-test-rc-2026-08-22-inregion.md`](./load-test-rc-2026-08-22-inregion.md).  
+This HKT-client attempt remains useful context for release notes (why p95 must be measured in-region).

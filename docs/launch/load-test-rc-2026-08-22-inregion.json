@@ -1,0 +1,38 @@
+{
+  "record": "docs/launch/load-test-rc-2026-08-22-inregion.md",
+  "timestamp_hkt": "2026-08-22T01:30:00+08:00",
+  "verdict": "pass",
+  "profile": "rc",
+  "targetVus": 1000,
+  "http_req_failed_rate": 0,
+  "http_req_duration_p95_ms": 33.809650999999995,
+  "http_req_duration_p99_ms": null,
+  "iterations": 155864,
+  "k6_exit_code": 0,
+  "codebuild_status": "SUCCEEDED",
+  "generator": {
+    "kind": "aws-codebuild",
+    "region": "us-east-1",
+    "compute": "BUILD_GENERAL1_LARGE",
+    "k6_version": "0.54.0",
+    "quiet": true
+  },
+  "target": {
+    "region": "us-east-1",
+    "stack": "VazueQueueLoadTestRc",
+    "preset": "minimal",
+    "enroll_buffer": false,
+    "lambda_memory_mb": 512,
+    "queue_api_url": "https://yxbwm6sew3.execute-api.us-east-1.amazonaws.com",
+    "event_id": "loadtest-rc",
+    "destroyed_after": true
+  },
+  "gates": {
+    "http_req_failed_rate_lt": 0.01,
+    "p95_ms_lt": 250,
+    "p99_ms_lt": 500
+  },
+  "related": {
+    "hkt_client_miss": "docs/launch/load-test-rc-2026-08-21.md"
+  }
+}

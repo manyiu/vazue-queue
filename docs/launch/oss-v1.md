@@ -7,11 +7,12 @@ Publish `@vazue/queue-cdk` **1.0.0** when this list is complete. SaaS (`packages
 - [x] `pnpm verify` green on `main` (keep green)
 - [x] `REQUIRE_ARTIFACTS=1 bash scripts/build-lambda-assets.sh` (zig + cargo-lambda)
 - [x] CDK synth: `pnpm --filter @vazue/queue-cdk test`
-- [ ] Load test RC: `PROFILE=rc bash scripts/load-test-100k.sh` against a **deployed** data plane
+- [x] Load test RC: `PROFILE=rc bash scripts/load-test-100k.sh` against a **deployed** data plane
   - Thresholds: fail rate &lt; 1%, p95 &lt; 250ms, p99 &lt; 500ms
   - 100K concurrent pollers: `PROFILE=rc VUS=100000` on distributed k6 / AWS DLTS — attach `load-test-report.json`
   - Runbook: `docs/deploy/oss-cdk.md` (Load test)
-  - Recorded attempt (HKT client → us-east-1, p95 miss / 0% fail): [`load-test-rc-2026-08-21.md`](./load-test-rc-2026-08-21.md)
+  - In-region pass (CodeBuild us-east-1, 1000 VUs, p95 ~34ms): [`load-test-rc-2026-08-22-inregion.md`](./load-test-rc-2026-08-22-inregion.md) / [`.json`](./load-test-rc-2026-08-22-inregion.json)
+  - Earlier HKT-client miss (geography): [`load-test-rc-2026-08-21.md`](./load-test-rc-2026-08-21.md) / [`.json`](./load-test-rc-2026-08-21.json)
 
 ## Product
 

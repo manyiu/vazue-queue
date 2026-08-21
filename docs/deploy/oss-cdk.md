@@ -66,11 +66,30 @@ Pass `return_url` on enroll (or set it on the event). GET status returns it when
 ```bash
 # Local smoke (needs k6 + local-server on :3000)
 PROFILE=smoke bash scripts/load-test-100k.sh
-# RC gate against a deployed API
-QUEUE_API_URL=https://api.example.com PROFILE=rc bash scripts/load-test-100k.sh
+
+# RC gate against a deployed data-plane URL
+QUEUE_API_URL=https://<your-queue-api> \
+EVENT_ID=<active-event-id> \
+PROFILE=rc \
+bash scripts/load-test-100k.sh
 ```
 
-Report writes `load-test-report.json`. Full 100K concurrent pollers needs distributed k6 or AWS Distributed Load Testing (`VUS=100000`).
+`scripts/load-test-status.js` writes `load-test-report.json` with at least:
+
+| Field | RC gate |
+|-------|---------|
+| `http_req_failed_rate` | &lt; 0.01 |
+| `http_req_duration_p95` | &lt; 250ms |
+| `http_req_duration_p99` | &lt; 500ms |
+
+Attach that file to the OSS v1 release notes. Full **100K** concurrent pollers needs distributed k6 or [AWS Distributed Load Testing](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/) (`VUS=100000`). The GitHub `Load test` workflow runs a small smoke/RC VU count against `local-server` only.
+
+Run the generator **in the same region** as the data plane when measuring p95 (cross-region RTT can dominate). Recorded RC evidence for later docs/release notes:
+
+- Pass (CodeBuild us-east-1, 1000 VUs): [`docs/launch/load-test-rc-2026-08-22-inregion.md`](../launch/load-test-rc-2026-08-22-inregion.md) / [`.json`](../launch/load-test-rc-2026-08-22-inregion.json)
+- HKT-client miss (geography): [`docs/launch/load-test-rc-2026-08-21.md`](../launch/load-test-rc-2026-08-21.md)
+
+In-region helper: `bash scripts/run-load-test-rc-inregion.sh` (ephemeral stack + CodeBuild; destroys afterward).
 
 ## Frontend assets for deploy
 

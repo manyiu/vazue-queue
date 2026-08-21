@@ -1,0 +1,29 @@
+{
+  "record": "docs/launch/load-test-rc-2026-08-21.md",
+  "timestamp_hkt": "2026-08-21T22:00:00+08:00",
+  "verdict": "fail_p95_geography",
+  "profile": "rc",
+  "targetVus": 1000,
+  "http_req_failed_rate": 0,
+  "http_req_duration_p95_ms": 285.795,
+  "http_req_duration_p99_ms": null,
+  "iterations": 139543,
+  "generator": {
+    "kind": "local-k6",
+    "client_location": "HKT",
+    "k6_version": "2.2.0"
+  },
+  "target": {
+    "region": "us-east-1",
+    "stack": "VazueQueueLoadTestRc",
+    "preset": "minimal",
+    "enroll_buffer": false,
+    "lambda_memory_mb": 256
+  },
+  "gates": {
+    "http_req_failed_rate_lt": 0.01,
+    "p95_ms_lt": 250,
+    "p99_ms_lt": 500
+  },
+  "superseded_by": "docs/launch/load-test-rc-2026-08-22-inregion.md"
+}
