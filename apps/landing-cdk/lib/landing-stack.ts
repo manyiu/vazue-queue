@@ -22,6 +22,11 @@ export interface LandingStackProps extends cdk.StackProps {
   hostedZoneId?: string;
   /** Directory with index.html + styles.css (apps/landing/dist). */
   siteAssetPath: string;
+  /**
+   * When true, destroy the site bucket on stack delete (dev/ephemeral only).
+   * Default false — retain bucket for production vanity domains.
+   */
+  ephemeral?: boolean;
 }
 
 /**
@@ -34,6 +39,13 @@ export class LandingStack extends cdk.Stack {
 
   constructor(scope: Construct, id: string, props: LandingStackProps) {
     super(scope, id, props);
+
+    // CloudFront custom-domain certs must be in us-east-1; fail fast if mis-regioned.
+    if (cdk.Stack.of(this).region !== 'us-east-1') {
+      throw new Error(
+        `LandingStack must deploy to us-east-1 (CloudFront ACM requirement); got ${cdk.Stack.of(this).region}`,
+      );
+    }
 
     if (!existsSync(props.siteAssetPath)) {
       throw new Error(
@@ -50,18 +62,18 @@ export class LandingStack extends cdk.Stack {
           domainName: props.hostedZoneName,
         });
 
-    // CloudFront requires ACM certificates in us-east-1.
     const certificate = new acm.Certificate(this, 'Certificate', {
       domainName: props.domainName,
       validation: acm.CertificateValidation.fromDns(zone),
     });
 
+    const ephemeral = props.ephemeral === true;
     this.bucket = new s3.Bucket(this, 'SiteBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true,
+      removalPolicy: ephemeral ? cdk.RemovalPolicy.DESTROY : cdk.RemovalPolicy.RETAIN,
+      autoDeleteObjects: ephemeral,
     });
 
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
@@ -75,14 +87,7 @@ export class LandingStack extends cdk.Stack {
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         compress: true,
       },
-      errorResponses: [
-        {
-          httpStatus: 404,
-          responseHttpStatus: 404,
-          responsePagePath: '/index.html',
-          ttl: cdk.Duration.minutes(1),
-        },
-      ],
+      // Static marketing site (not an SPA) — leave missing paths as real 404s.
       comment: `Vazue Queue marketing — ${props.domainName}`,
     });
 
@@ -121,7 +126,21 @@ export class LandingStack extends cdk.Stack {
   }
 }
 
-/** Resolve apps/landing/dist from this package. */
+/**
+ * Resolve apps/landing/dist whether running via ts-node (…/lib) or compiled JS (…/dist/lib).
+ */
 export function defaultLandingAssetPath(): string {
-  return join(__dirname, '..', '..', 'landing', 'dist');
+  const candidates = [
+    // ts-node: apps/landing-cdk/lib → apps/landing/dist
+    join(__dirname, '..', '..', 'landing', 'dist'),
+    // compiled: apps/landing-cdk/dist/lib → apps/landing/dist
+    join(__dirname, '..', '..', '..', 'landing', 'dist'),
+  ];
+  const found = candidates.find((p) => existsSync(join(p, 'index.html')));
+  if (!found) {
+    throw new Error(
+      `Landing assets not found (tried ${candidates.join(', ')}). Run: pnpm --filter @vazue/landing build`,
+    );
+  }
+  return found;
 }

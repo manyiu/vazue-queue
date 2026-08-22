@@ -33,6 +33,8 @@ Optional context / env:
 | `hostedZoneName` | `vazue.com` | Zone to validate ACM + create aliases |
 | `hostedZoneId` / `HOSTED_ZONE_ID` | *(lookup)* | Set to skip Route 53 lookup at synth |
 
+Stack defaults to **retaining** the S3 bucket on destroy (production-safe). Pass `ephemeral: true` only for throwaway stacks.
+
 ```bash
 HOSTED_ZONE_ID=Zxxxxxxxxxxxx pnpm --filter @vazue/landing-cdk deploy
 # or
