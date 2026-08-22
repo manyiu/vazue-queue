@@ -20,6 +20,7 @@
     "fmt": "cargo fmt --manifest-path packages/core-rust/Cargo.toml && pnpm -r --filter=./packages/* run fmt --if-present"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.8",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
     "@types/node": "^24.2.0"
