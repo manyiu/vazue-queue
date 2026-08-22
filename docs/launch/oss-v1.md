@@ -43,7 +43,7 @@ Only these packages (enforced by `scripts/check-publish-boundary.sh`):
 - [x] Landing source: `apps/landing` (point `queue.vazue.com` DNS when ready)
 - [x] `SECURITY.md` reporting + scope
 - [ ] Enable GitHub Discussions on the public repo (Settings → General → Features)
-- [ ] Deploy landing to Pages / CloudFront and cut over `queue.vazue.com`
+- [ ] Deploy landing via CDK (`pnpm --filter @vazue/landing-cdk deploy`) and cut over `queue.vazue.com`
 
 ## Honest integration note
 
