@@ -34,11 +34,13 @@ for name in @vazue/saas-plan-limits @vazue/saas-billing @vazue/saas-cdk; do
   fi
 done
 
-# No publishConfig.access on saas packages
-if grep -R --include='package.json' -l '"publishConfig"' packages/saas 2>/dev/null | grep -q .; then
-  echo "ERROR: packages/saas must not declare publishConfig"
-  fail=1
-fi
+# No publishConfig on saas workspace packages (exclude node_modules — Linux grep -R follows pnpm symlinks).
+while IFS= read -r pkg; do
+  if grep -q '"publishConfig"' "$pkg"; then
+    echo "ERROR: packages/saas must not declare publishConfig ($pkg)"
+    fail=1
+  fi
+done < <(find packages/saas -name package.json -not -path '*/node_modules/*')
 
 # Only allow-listed packages may declare public publishConfig.
 while IFS= read -r pkg; do
@@ -54,7 +56,7 @@ while IFS= read -r pkg; do
       fail=1
     fi
   fi
-done < <(find packages connectors apps -name package.json 2>/dev/null | grep -v node_modules)
+done < <(find packages connectors apps -name package.json -not -path '*/node_modules/*' 2>/dev/null)
 
 if [[ "$fail" -ne 0 ]]; then
   exit 1
