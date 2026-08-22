@@ -6,9 +6,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 ALLOWED_PUBLISH=(
-  "@vazue/queue-cdk"
+  "@yiu/queue-cdk"
   "create-vazue-queue"
-  "@vazue/queue-sdk"
+  "@yiu/queue-sdk"
 )
 
 echo "==> OSS publish boundary (only these packages may publish):"

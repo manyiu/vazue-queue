@@ -28,7 +28,7 @@ The app deploys:
 
 ```ts
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-import { VazueQueue } from '@vazue/queue-cdk';
+import { VazueQueue } from '@yiu/queue-cdk';
 
 const queue = new VazueQueue(this, 'Queue', {
   domainName: 'queue.example.com',
@@ -56,7 +56,7 @@ Outputs `EdgeProtectVersionArn` if you associate via Console / CLI instead of CD
 | Valid `vazue_token` cookie or `?vazue_token=` | Pass through |
 | Otherwise | `302` → `https://queue.example.com?returnUrl=…` |
 
-After admit, the waiting room redirects to `returnUrl` and appends `vazue_token`. Your origin (or this edge gate) must verify the token with the same HS256 secret — see `@vazue/queue-sdk` `verifyAdmitToken`.
+After admit, the waiting room redirects to `returnUrl` and appends `vazue_token`. Your origin (or this edge gate) must verify the token with the same HS256 secret — see `@yiu/queue-sdk` `verifyAdmitToken`.
 
 ## Prefer a greenfield origin gate?
 

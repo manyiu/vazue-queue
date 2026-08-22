@@ -229,7 +229,7 @@ async function main() {
       : await wizard(existing);
     writeFileSync(
       configPath,
-      JSON.stringify({ $schema: 'https://unpkg.com/@vazue/queue-cdk/config-schema.json', ...cfg }, null, 2) + '\n',
+      JSON.stringify({ $schema: 'https://unpkg.com/@yiu/queue-cdk/config-schema.json', ...cfg }, null, 2) + '\n',
     );
     console.log('Wrote', configPath);
     return;

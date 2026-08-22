@@ -1,5 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
-import { VazueQueue } from '@vazue/queue-cdk';
+import { VazueQueue } from '@yiu/queue-cdk';
 
 const app = new cdk.App();
 const stack = new cdk.Stack(app, 'VazueQueueExample', {

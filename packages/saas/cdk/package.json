@@ -2,7 +2,7 @@
   "name": "@vazue/saas-cdk",
   "version": "0.1.0",
   "private": true,
-  "description": "VazueSaaSPlatform wrapping @vazue/queue-cdk — NOT published to npm",
+  "description": "VazueSaaSPlatform wrapping @yiu/queue-cdk — NOT published to npm",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,12 +13,12 @@
   "peerDependencies": {
     "aws-cdk-lib": "^2.200.0",
     "constructs": "^10.0.0",
-    "@vazue/queue-cdk": "workspace:*"
+    "@yiu/queue-cdk": "workspace:*"
   },
   "devDependencies": {
     "aws-cdk-lib": "^2.208.0",
     "constructs": "^10.4.2",
-    "@vazue/queue-cdk": "workspace:*",
+    "@yiu/queue-cdk": "workspace:*",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
     "@types/node": "^24.2.0",

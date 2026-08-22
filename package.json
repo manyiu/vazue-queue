@@ -13,7 +13,7 @@
     "test:unit": "cargo test --workspace --manifest-path packages/core-rust/Cargo.toml && pnpm -r --filter=./packages/* run test --if-present",
     "test:integration": "cargo test --workspace --manifest-path packages/core-rust/Cargo.toml --test '*' -- --ignored 2>/dev/null || cargo test --workspace --manifest-path packages/core-rust/Cargo.toml",
     "test:api": "bash scripts/test-api.sh",
-    "test:cdk": "pnpm --filter @vazue/queue-cdk test",
+    "test:cdk": "pnpm --filter @yiu/queue-cdk test",
     "test:local": "bash scripts/test-local.sh",
     "verify": "bash scripts/verify.sh",
     "lint": "pnpm -r --filter=./packages/* run lint --if-present",

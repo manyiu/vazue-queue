@@ -13,7 +13,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
-import { VazueQueue } from '@vazue/queue-cdk';
+import { VazueQueue } from '@yiu/queue-cdk';
 
 const JWT_SECRET = process.env.VAZUE_JWT_HMAC_SECRET ?? 'dev-only-hmac-secret-change-me';
 

@@ -6,8 +6,8 @@ cd "$ROOT"
 echo "==> unit (cargo + vitest subset)"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/packages/core-rust/target}"
 cargo test --manifest-path packages/core-rust/Cargo.toml --workspace
-pnpm --filter @vazue/queue-cdk test
-pnpm --filter @vazue/queue-sdk test
+pnpm --filter @yiu/queue-cdk test
+pnpm --filter @yiu/queue-sdk test
 pnpm --filter create-vazue-queue test
 pnpm --filter @vazue/saas-plan-limits test
 pnpm --filter @vazue/queue-edge-cloudfront test

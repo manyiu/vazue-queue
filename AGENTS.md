@@ -4,7 +4,7 @@ Guidance for AI agents and humans working in this monorepo.
 
 ## Product
 
-Vazue Queue is an OSS-first virtual waiting room on AWS. Publish only OSS packages to npm (`@vazue/queue-cdk`, `create-vazue-queue`, `@vazue/queue-sdk`). `packages/saas/` is commercial and must not be published.
+Vazue Queue is an OSS-first virtual waiting room on AWS. Publish only OSS packages to npm (`@yiu/queue-cdk`, `create-vazue-queue`, `@yiu/queue-sdk`). `packages/saas/` is commercial and must not be published.
 
 ## Defaults
 
@@ -44,9 +44,9 @@ npx vazue-queue cost --visitors 100000 --minutes 60
 | Path | Role | Publish |
 |------|------|---------|
 | `packages/core-rust` | queue-kernel, queue-api, admin-api, platform | No (binaries via CDK) |
-| `packages/cdk` | `@vazue/queue-cdk` | Yes |
+| `packages/cdk` | `@yiu/queue-cdk` | Yes |
 | `packages/create-vazue-queue` | Scaffold + CLI wizard | Yes |
-| `packages/sdk-typescript` | `@vazue/queue-sdk` | Yes |
+| `packages/sdk-typescript` | `@yiu/queue-sdk` | Yes |
 | `packages/sdk-go` | Go client | Go module (not npm) |
 | `packages/sdk-java` | Java client | Maven (not npm) |
 | `packages/saas` | Stripe, plan-limits, SaaS CDK | **Never npm** |

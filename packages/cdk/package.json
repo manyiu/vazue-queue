@@ -1,6 +1,6 @@
 {
-  "name": "@vazue/queue-cdk",
-  "version": "0.1.0",
+  "name": "@yiu/queue-cdk",
+  "version": "1.0.0",
   "description": "CDK constructs for Vazue Queue virtual waiting room",
   "license": "Apache-2.0",
   "type": "module",
@@ -37,5 +37,10 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manyiu/vazue-queue.git",
+    "directory": "packages/cdk"
   }
 }

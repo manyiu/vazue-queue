@@ -8,7 +8,7 @@ export function writeProject(dir: string, cfg: QueueCliConfig) {
   mkdirSync(join(dir, 'bin'), { recursive: true });
   writeFileSync(
     join(dir, 'vazue-queue.config.json'),
-    JSON.stringify({ $schema: 'https://unpkg.com/@vazue/queue-cdk/config-schema.json', ...cfg }, null, 2) +
+    JSON.stringify({ $schema: 'https://unpkg.com/@yiu/queue-cdk/config-schema.json', ...cfg }, null, 2) +
       '\n',
   );
   writeFileSync(
@@ -23,7 +23,7 @@ export function writeProject(dir: string, cfg: QueueCliConfig) {
           'test:local': 'echo "run monorepo pnpm test:local from vazue-queue root"',
         },
         dependencies: {
-          '@vazue/queue-cdk': 'workspace:*',
+          '@yiu/queue-cdk': '^1.0.0',
           'aws-cdk-lib': '^2.208.0',
           constructs: '^10.4.2',
         },
@@ -45,7 +45,7 @@ export function writeProject(dir: string, cfg: QueueCliConfig) {
   writeFileSync(
     join(dir, 'bin/app.ts'),
     `import * as cdk from 'aws-cdk-lib';
-import { VazueQueue } from '@vazue/queue-cdk';
+import { VazueQueue } from '@yiu/queue-cdk';
 import { readFileSync } from 'node:fs';
 
 const app = new cdk.App();

@@ -15,7 +15,7 @@ We aim to acknowledge reports within **3 business days** and share a remediation
 
 **In scope**
 
-- Published OSS packages: `@vazue/queue-cdk`, `create-vazue-queue`, `@vazue/queue-sdk`
+- Published OSS packages: `@yiu/queue-cdk`, `create-vazue-queue`, `@yiu/queue-sdk`
 - Queue data plane / admin APIs, waiting room, Lambda@Edge connector as shipped in this repo
 - Admit-token verification helpers (forgery, bypass of signature checks)
 
