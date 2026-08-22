@@ -1,6 +1,6 @@
 {
   "name": "create-vazue-queue",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Scaffold and configure a Vazue Queue CDK app",
   "license": "Apache-2.0",
   "type": "module",
@@ -8,7 +8,9 @@
     "create-vazue-queue": "./dist/cli.js",
     "vazue-queue": "./dist/cli.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
