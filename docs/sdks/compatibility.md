@@ -5,7 +5,7 @@ Hand-polished clients are the supported SDKs. OpenAPI Generator stubs under
 
 | Language | Package | Min runtime | Local | CI (every PR via `ci.yml`) |
 |----------|---------|-------------|-------|----------------------------|
-| TypeScript | `@vazue/queue-sdk` | Node 20+ | `pnpm --filter @vazue/queue-sdk test` | `setup-node` |
+| TypeScript | `@yiu/queue-sdk` | Node 20+ | `pnpm --filter @yiu/queue-sdk test` | `setup-node` |
 | Go | `github.com/vazue/queue-go` | Go 1.22+ | `bash scripts/sdk-go-test.sh` (Docker) | `actions/setup-go` + `go test` |
 | Java | `io.vazue:queue-sdk` | Java 11+ | `bash scripts/sdk-java-test.sh` (Docker) | `actions/setup-java` + `mvn test` |
 

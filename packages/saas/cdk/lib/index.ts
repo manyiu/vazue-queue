@@ -8,7 +8,7 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import { VazueQueue, type VazueQueueProps } from '@vazue/queue-cdk';
+import { VazueQueue, type VazueQueueProps } from '@yiu/queue-cdk';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

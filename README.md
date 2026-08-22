@@ -23,9 +23,9 @@ pnpm --filter @vazue/waiting-room dev
 
 | Package | Description |
 |---------|-------------|
-| `@vazue/queue-cdk` | Deploy the stack |
+| `@yiu/queue-cdk` | Deploy the stack |
 | `create-vazue-queue` | Scaffold + config wizard |
-| `@vazue/queue-sdk` | TypeScript client |
+| `@yiu/queue-sdk` | TypeScript client |
 | `github.com/vazue/queue-go` | Go client (local Docker: `scripts/sdk-go-test.sh`; CI: native Go) |
 | `io.vazue:queue-sdk` | Java 11+ client (local Docker: `scripts/sdk-java-test.sh`; CI: native Maven) |
 | `@vazue/queue-edge-cloudfront` | Lambda@Edge connector (private; vendored via CDK) |

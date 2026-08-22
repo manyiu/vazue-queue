@@ -4,7 +4,7 @@
 
 | Language | Path | Package |
 |----------|------|---------|
-| TypeScript | `packages/sdk-typescript` | `@vazue/queue-sdk` |
+| TypeScript | `packages/sdk-typescript` | `@yiu/queue-sdk` |
 | Go | `packages/sdk-go` | `github.com/vazue/queue-go` |
 | Java | `packages/sdk-java` | `io.vazue:queue-sdk` |
 

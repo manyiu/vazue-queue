@@ -65,8 +65,8 @@ else
 fi
 
 echo "==> pnpm package tests"
-pnpm --filter @vazue/queue-cdk test
-pnpm --filter @vazue/queue-sdk test
+pnpm --filter @yiu/queue-cdk test
+pnpm --filter @yiu/queue-sdk test
 pnpm --filter create-vazue-queue test
 pnpm --filter @vazue/saas-plan-limits test
 pnpm --filter @vazue/saas-billing test

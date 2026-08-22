@@ -25,7 +25,7 @@ Default AWS region for examples: **us-east-1**.
 
 ## Pre-built assets (from this monorepo)
 
-Before publishing `@vazue/queue-cdk` or deploying the monorepo example:
+Before publishing `@yiu/queue-cdk` or deploying the monorepo example:
 
 ```bash
 # Rust Lambdas → packages/cdk/assets/lambda/*.zip
@@ -116,7 +116,7 @@ That creates a third CloudFront distribution in front of `shop.example.com` with
 
 Without `origin.domainName`, the function is still built; associate the version ARN yourself on an existing distribution (stack `env` must be `us-east-1` for true Lambda@Edge). See **[examples/with-existing-cloudfront](../../examples/with-existing-cloudfront)** for a CDK pattern that attaches `queue.edgeProtect.edgeVersion` to a shop distribution you already own.
 
-Origin apps should reject requests without a valid admit token using `@vazue/queue-sdk` `verifyAdmitToken` (same HS256 secret).
+Origin apps should reject requests without a valid admit token using `@yiu/queue-sdk` `verifyAdmitToken` (same HS256 secret).
 
 ## Enroll buffer (SQS)
 

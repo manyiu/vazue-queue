@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build Rust Lambda zips into packages/cdk/assets/lambda/ for @vazue/queue-cdk.
+# Build Rust Lambda zips into packages/cdk/assets/lambda/ for @yiu/queue-cdk.
 # Set REQUIRE_ARTIFACTS=1 to fail if any expected zip is missing (CI release path).
 # On macOS/non-Linux hosts, arm64 Lambda builds need zig (`brew install zig`).
 set -euo pipefail

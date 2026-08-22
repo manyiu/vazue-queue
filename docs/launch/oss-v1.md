@@ -1,12 +1,14 @@
 # OSS v1.0 launch checklist
 
-Publish `@vazue/queue-cdk` **1.0.0** when this list is complete. SaaS (`packages/saas/`) is **not** part of v1.
+Publish `@yiu/queue-cdk` **1.0.0** when this list is complete. SaaS (`packages/saas/`) is **not** part of v1.
+
+**npm scope:** v1 publishes under **`@yiu/*`** (npm user `yiu`). When the `@vazue` npm org exists, publish parallel `@vazue/*` packages and deprecate `@yiu/*` — npm does not rename scopes on transfer.
 
 ## Quality
 
 - [x] `pnpm verify` green on `main` (keep green)
 - [x] `REQUIRE_ARTIFACTS=1 bash scripts/build-lambda-assets.sh` (zig + cargo-lambda)
-- [x] CDK synth: `pnpm --filter @vazue/queue-cdk test`
+- [x] CDK synth: `pnpm --filter @yiu/queue-cdk test`
 - [x] Load test RC: `PROFILE=rc bash scripts/load-test-100k.sh` against a **deployed** data plane
   - Thresholds: fail rate &lt; 1%, p95 &lt; 250ms, p99 &lt; 500ms
   - 100K concurrent pollers: `PROFILE=rc VUS=100000` on distributed k6 / AWS DLTS — attach `load-test-report.json`
@@ -26,9 +28,9 @@ Publish `@vazue/queue-cdk` **1.0.0** when this list is complete. SaaS (`packages
 
 Only these packages (enforced by `scripts/check-publish-boundary.sh`):
 
-- `@vazue/queue-cdk`
+- `@yiu/queue-cdk`
 - `create-vazue-queue`
-- `@vazue/queue-sdk`
+- `@yiu/queue-sdk`
 
 `packages/saas/` and connector/frontend apps stay private. Release workflow publishes with **npm provenance** (`.github/workflows/release.yml`).
 

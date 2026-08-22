@@ -80,7 +80,7 @@ importers:
 
   examples/self-hosted:
     dependencies:
-      '@vazue/queue-cdk':
+      '@yiu/queue-cdk':
         specifier: workspace:*
         version: link:../../packages/cdk
       aws-cdk-lib:
@@ -105,7 +105,7 @@ importers:
 
   examples/with-existing-cloudfront:
     dependencies:
-      '@vazue/queue-cdk':
+      '@yiu/queue-cdk':
         specifier: workspace:*
         version: link:../../packages/cdk
       aws-cdk-lib:
@@ -190,7 +190,7 @@ importers:
       '@types/node':
         specifier: ^24.2.0
         version: 24.13.3
-      '@vazue/queue-cdk':
+      '@yiu/queue-cdk':
         specifier: workspace:*
         version: link:../../cdk
       aws-cdk-lib:
