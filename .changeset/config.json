@@ -14,6 +14,7 @@
     "@vazue/waiting-room",
     "@vazue/admin-portal",
     "@vazue/landing",
+    "@vazue/landing-cdk",
     "@vazue/queue-edge-cloudfront",
     "vazue-queue-example",
     "vazue-queue-with-existing-cloudfront"

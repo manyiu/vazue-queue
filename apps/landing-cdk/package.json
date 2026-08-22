@@ -1,0 +1,25 @@
+{
+  "name": "@vazue/landing-cdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CDK stack for queue.vazue.com marketing landing (S3 + CloudFront + ACM + Route 53)",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "synth": "cdk synth",
+    "deploy": "pnpm --filter @vazue/landing build && cdk deploy --require-approval never",
+    "diff": "cdk diff",
+    "destroy": "cdk destroy"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.208.0",
+    "constructs": "^10.4.2"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.208.0",
+    "typescript": "^5.9.2",
+    "ts-node": "^10.9.2",
+    "@types/node": "^24.2.0",
+    "vitest": "^3.2.4"
+  }
+}
