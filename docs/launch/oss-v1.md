@@ -34,16 +34,16 @@ Only these packages (enforced by `scripts/check-publish-boundary.sh`):
 
 `packages/saas/` and connector/frontend apps stay private. Release workflow publishes with **npm provenance** (`.github/workflows/release.yml`).
 
-- [ ] Changeset bump to **1.0.0** + merge release PR when quality gates above pass
-- [ ] Confirm npm provenance attestations on the three packages
+- [x] Changeset bump to **1.0.0** + publish (`@yiu/queue-cdk`, `create-vazue-queue`, `@yiu/queue-sdk`)
+- [ ] Confirm npm provenance attestations on the three packages (OIDC CI publish; bootstrap may lack provenance)
 
 ## Docs / community
 
 - [x] `docs/deploy/oss-cdk.md` current
 - [x] Landing source: `apps/landing` (point `queue.vazue.com` DNS when ready)
 - [x] `SECURITY.md` reporting + scope
-- [ ] Enable GitHub Discussions on the public repo (Settings → General → Features)
-- [ ] Deploy landing via CDK (`pnpm --filter @vazue/landing-cdk deploy`) and cut over `queue.vazue.com`
+- [x] Enable GitHub Discussions on the public repo (Settings → General → Features)
+- [x] Deploy landing via CDK (`pnpm --filter @vazue/landing-cdk run deploy`) and cut over `queue.vazue.com`
 
 ## Honest integration note
 

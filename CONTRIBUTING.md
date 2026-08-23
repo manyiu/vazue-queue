@@ -21,18 +21,18 @@ native `setup-go` / `setup-java` — see `docs/sdks/compatibility.md`.
 
 ## Community
 
-Enable **GitHub Discussions** on the public repository (Settings → Features) for Q&A
-and launch announcements. Security reports: see `SECURITY.md` (private advisory preferred).
+**GitHub Discussions** is enabled for Q&A and launch announcements.
+Security reports: see `SECURITY.md` (private advisory preferred).
 
 ## OSS v1.0 definition of done
 
 Ship `@yiu/queue-cdk` **1.0.0** only when all of these are true:
 
-- [ ] `pnpm verify` green on `main`
+- [x] `pnpm verify` green on `main`
 - [x] Lambda zips built (`REQUIRE_ARTIFACTS=1 bash scripts/build-lambda-assets.sh`)
 - [ ] `standard` preset deploy smoke in us-east-1
 - [x] Load-test report: `PROFILE=rc bash scripts/load-test-100k.sh` (p99 &lt; 500ms, fail rate &lt; 1%). Full 100K VUs on distributed k6 / AWS DLTS.
-- [ ] Docs: `docs/deploy/oss-cdk.md` + cost CLI (`npx vazue-queue cost`)
+- [x] Docs: `docs/deploy/oss-cdk.md` + cost CLI (`npx vazue-queue cost`)
 - [ ] npm provenance publish of `@yiu/queue-cdk`, `create-vazue-queue`, `@yiu/queue-sdk` only (`scripts/check-publish-boundary.sh`)
 
 See `docs/launch/oss-v1.md`.
