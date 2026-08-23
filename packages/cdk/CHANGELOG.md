@@ -1,5 +1,11 @@
 # @yiu/queue-cdk
 
+## 1.0.1
+
+### Patch Changes
+
+- 7b09923: Re-publish via GitHub Actions OIDC to attach npm provenance attestations (bootstrap 1.0.0 was local).
+
 ## 1.0.0
 
 ### Major Changes
