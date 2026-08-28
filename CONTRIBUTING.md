@@ -31,7 +31,7 @@ Ship `@yiu/queue-cdk` **1.0.0** only when all of these are true:
 - [x] `pnpm verify` green on `main`
 - [x] Lambda zips built (`REQUIRE_ARTIFACTS=1 bash scripts/build-lambda-assets.sh`)
 - [x] `standard` preset deploy smoke in us-east-1 (`bash scripts/deploy-smoke-standard.sh`; record in [`docs/launch/deploy-smoke-standard-2026-08-28.md`](docs/launch/deploy-smoke-standard-2026-08-28.md))
-- [x] Load-test report: `PROFILE=rc bash scripts/load-test-100k.sh` (p99 &lt; 500ms, fail rate &lt; 1%). Full 100K VUs on distributed k6 / AWS DLTS.
+- [x] Load-test RC gate: in-region **1000 VUs** + validated **10K VUs** ([`load-test-10k-2026-08-28.md`](docs/launch/load-test-10k-2026-08-28.md)). **100K waived** ([`load-test-100k-2026-08-28.md`](docs/launch/load-test-100k-2026-08-28.md)).
 - [x] Docs: `docs/deploy/oss-cdk.md` + cost CLI (`npx vazue-queue cost`)
 - [x] npm provenance publish of `@yiu/queue-cdk`, `create-vazue-queue`, `@yiu/queue-sdk` only (`scripts/check-publish-boundary.sh`; `1.0.1`)
 

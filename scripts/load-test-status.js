@@ -80,9 +80,11 @@ export default function (data) {
 export function handleSummary(data) {
   const failed = data.metrics.http_req_failed;
   const duration = data.metrics.http_req_duration;
+  const workerId = __ENV.WORKER_ID || null;
   const report = {
     profile: PROFILE,
     targetVus: VUS,
+    workerId,
     http_req_failed_rate: failed ? failed.values.rate : null,
     http_req_duration_p95: duration ? duration.values['p(95)'] : null,
     http_req_duration_p99: duration ? duration.values['p(99)'] : null,

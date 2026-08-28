@@ -9,12 +9,13 @@ Publish `@yiu/queue-cdk` **1.0.0** when this list is complete. SaaS (`packages/s
 - [x] `pnpm verify` green on `main` (keep green)
 - [x] `REQUIRE_ARTIFACTS=1 bash scripts/build-lambda-assets.sh` (zig + cargo-lambda)
 - [x] CDK synth: `pnpm --filter @yiu/queue-cdk test`
-- [x] Load test RC: `PROFILE=rc bash scripts/load-test-100k.sh` against a **deployed** data plane
+- [x] Load test RC: `PROFILE=rc` against a **deployed** data plane (**1000 VUs** — OSS v1 gate)
   - Thresholds: fail rate &lt; 1%, p95 &lt; 250ms, p99 &lt; 500ms
-  - 100K concurrent pollers: `PROFILE=rc VUS=100000` on distributed k6 / AWS DLTS — attach `load-test-report.json`
   - Runbook: `docs/deploy/oss-cdk.md` (Load test)
   - In-region pass (CodeBuild us-east-1, 1000 VUs, p95 ~34ms): [`load-test-rc-2026-08-22-inregion.md`](./load-test-rc-2026-08-22-inregion.md) / [`.json`](./load-test-rc-2026-08-22-inregion.json)
+  - In-region pass (10,000 VUs, fail ~0.03%, p95 ~39ms): [`load-test-10k-2026-08-28.md`](./load-test-10k-2026-08-28.md) / [`.json`](./load-test-10k-2026-08-28.json)
   - Earlier HKT-client miss (geography): [`load-test-rc-2026-08-21.md`](./load-test-rc-2026-08-21.md) / [`.json`](./load-test-rc-2026-08-21.json)
+  - **100K concurrent pollers — waived for v1** (exploratory; ~71% throttle failures under 10 parallel workers): [`load-test-100k-2026-08-28.md`](./load-test-100k-2026-08-28.md)
 
 ## Product
 

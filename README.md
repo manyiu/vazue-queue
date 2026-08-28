@@ -32,6 +32,22 @@ pnpm --filter @vazue/waiting-room dev
 
 Marketing landing source: `apps/landing` (target host `queue.vazue.com`).
 
+## Documentation
+
+| Topic | Path |
+|-------|------|
+| Deploy (CDK) | [`docs/deploy/oss-cdk.md`](docs/deploy/oss-cdk.md) |
+| Capacity / performance | [`docs/deploy/capacity.md`](docs/deploy/capacity.md) |
+| OSS v1 launch checklist | [`docs/launch/oss-v1.md`](docs/launch/oss-v1.md) |
+| SDK compatibility (Go/Java CI vs Docker) | [`docs/sdks/compatibility.md`](docs/sdks/compatibility.md) |
+| Lambda@Edge on existing CloudFront | [`examples/with-existing-cloudfront`](examples/with-existing-cloudfront) |
+
+## Capacity
+
+Plan for **~10,000 concurrent status pollers** (in-region, RC SLOs) on a default data plane. Status polling matches the waiting room; **`standard` preset may do better** thanks to CloudFront status caching. Load tests do not fully model enroll bursts or global client RTT.
+
+See [`docs/deploy/capacity.md`](docs/deploy/capacity.md) for validated numbers, estimation formulas, and limits vs real deployments.
+
 `packages/saas/` is commercial and **not** published.
 
 ## License

@@ -5,6 +5,7 @@
 #   PROFILE=stress VUS=500 bash scripts/load-test-100k.sh
 #   PROFILE=rc VUS=1000 bash scripts/load-test-100k.sh
 # Full 100K concurrent pollers: PROFILE=rc VUS=100000 on distributed k6 / AWS DLTS.
+# In-region helper: bash scripts/run-load-test-100k-inregion.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export PROFILE="${PROFILE:-smoke}"
