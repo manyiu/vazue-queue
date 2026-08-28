@@ -15,7 +15,9 @@ def weighted_avg(reports: list[dict], key: str) -> float | None:
     ]
     if not pairs:
         return None
-    weight = sum(w for _, w in pairs) or len(pairs)
+    weight = sum(w for _, w in pairs)
+    if weight == 0:
+        return sum(v for v, _ in pairs) / len(pairs)
     return sum(v * w for v, w in pairs) / weight
 
 

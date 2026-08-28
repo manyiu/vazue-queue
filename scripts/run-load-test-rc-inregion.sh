@@ -4,6 +4,17 @@ set -euo pipefail
 
 unproxy() { env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u ALL_PROXY -u all_proxy "$@"; }
 
+create_ephemeral_bucket() {
+  local bucket=$1
+  local region=$2
+  if [[ "$region" == "us-east-1" ]]; then
+    unproxy aws s3api create-bucket --bucket "$bucket" --region "$region"
+  else
+    unproxy aws s3api create-bucket --bucket "$bucket" --region "$region" \
+      --create-bucket-configuration "LocationConstraint=$region"
+  fi
+}
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ACCOUNT=517206156255
 REGION=us-east-1
@@ -67,7 +78,7 @@ for _ in $(seq 1 30); do unproxy curl -sf "$QUEUE_API_URL/v1/events/$EVENT_ID/st
 echo "warmed $RID"
 
 echo "==> S3 bucket $BUCKET"
-unproxy aws s3api create-bucket --bucket "$BUCKET" --region "$REGION" >/dev/null
+create_ephemeral_bucket "$BUCKET" "$REGION" >/dev/null
 unproxy aws s3 cp "$ROOT/scripts/load-test-status.js" "s3://$BUCKET/load-test-status.js"
 
 echo "==> CodeBuild role"
@@ -89,7 +100,7 @@ buildspec = """version: 0.2
 phases:
   install:
     commands:
-      - curl -sL https://github.com/grafana/k6/releases/download/v0.54.0/k6-v0.54.0-linux-amd64.tar.gz | tar xz
+      - curl -fsSL https://github.com/grafana/k6/releases/download/v0.54.0/k6-v0.54.0-linux-amd64.tar.gz | tar xz
       - sudo mv k6-v0.54.0-linux-amd64/k6 /usr/local/bin/k6
       - k6 version
   build:
