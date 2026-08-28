@@ -14,6 +14,17 @@ set -euo pipefail
 
 unproxy() { env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u ALL_PROXY -u all_proxy "$@"; }
 
+create_ephemeral_bucket() {
+  local bucket=$1
+  local region=$2
+  if [[ "$region" == "us-east-1" ]]; then
+    unproxy aws s3api create-bucket --bucket "$bucket" --region "$region"
+  else
+    unproxy aws s3api create-bucket --bucket "$bucket" --region "$region" \
+      --create-bucket-configuration "LocationConstraint=$region"
+  fi
+}
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_NAME=VazueQueueLoadTestRc
 REGION="${REGION:-us-east-1}"
@@ -111,7 +122,7 @@ for _ in $(seq 1 30); do unproxy curl -sf "$QUEUE_API_URL/v1/events/$EVENT_ID/st
 echo "warmed request_id=$RID"
 
 echo "==> S3 bucket $BUCKET"
-unproxy aws s3api create-bucket --bucket "$BUCKET" --region "$REGION" >/dev/null
+create_ephemeral_bucket "$BUCKET" "$REGION" >/dev/null
 unproxy aws s3 cp "$ROOT/scripts/load-test-status.js" "s3://$BUCKET/load-test-status.js"
 
 echo "==> CodeBuild role"
@@ -134,7 +145,7 @@ buildspec = """version: 0.2
 phases:
   install:
     commands:
-      - curl -sL https://github.com/grafana/k6/releases/download/v0.54.0/k6-v0.54.0-linux-amd64.tar.gz | tar xz
+      - curl -fsSL https://github.com/grafana/k6/releases/download/v0.54.0/k6-v0.54.0-linux-amd64.tar.gz | tar xz
       - sudo mv k6-v0.54.0-linux-amd64/k6 /usr/local/bin/k6
       - k6 version
   build:
@@ -209,6 +220,17 @@ for i in $(seq 1 240); do
   [[ "$pending" -eq 0 ]] && break
   sleep 15
 done
+if [[ "$pending" -ne 0 ]]; then
+  echo "ERROR: timed out waiting for CodeBuild workers (240 polls × 15s)"
+  exit 1
+fi
+for w in $(seq 0 $((WORKERS - 1))); do
+  st=$(unproxy aws codebuild batch-get-builds --ids "${BUILD_IDS[$w]}" --query 'builds[0].buildStatus' --output text)
+  if [[ "$st" != "SUCCEEDED" ]]; then
+    echo "ERROR: worker=$w build_status=$st"
+    exit 1
+  fi
+done
 
 REPORT_DIR="/tmp/vazue-100k-reports-$$"
 rm -rf "$REPORT_DIR"
@@ -220,12 +242,12 @@ for w in $(seq 0 $((WORKERS - 1))); do
   [[ -f "$dest" ]] && REPORT_FILES+=("$dest")
 done
 
-AGG="$REPORT_DIR/aggregate.json"
-if [[ ${#REPORT_FILES[@]} -eq 0 ]]; then
-  echo "ERROR: no worker reports downloaded"
+if [[ ${#REPORT_FILES[@]} -ne "$WORKERS" ]]; then
+  echo "ERROR: expected $WORKERS worker reports, got ${#REPORT_FILES[@]}"
   ls -la "$REPORT_DIR" || true
   exit 1
 fi
+AGG="$REPORT_DIR/aggregate.json"
 python3 "$ROOT/scripts/load-test-aggregate-reports.py" "${REPORT_FILES[@]}" > "$AGG" 2>/dev/null || {
   echo "ERROR: could not aggregate worker reports (missing files?)"
   ls -la "$REPORT_DIR" || true
@@ -254,12 +276,13 @@ def fmt(v, digits=1):
     return "—" if v is None else f"{float(v):.{digits}f}"
 
 fail = report.get("http_req_failed_rate")
-p95 = report.get("http_req_duration_p95")
-p99 = report.get("http_req_duration_p99")
+# Conservative gate: max worker percentile when distributed (not a true global percentile).
+p95 = report.get("http_req_duration_p95_max") or report.get("http_req_duration_p95")
+p99 = report.get("http_req_duration_p99_max") or report.get("http_req_duration_p99")
 gate_fail = fail is not None and fail < 0.01
 gate_p95 = p95 is not None and p95 < 250
 gate_p99 = p99 is not None and p99 < 500
-verdict = "PASS" if gate_fail and gate_p95 and (gate_p99 or p99 is None and gate_p95) else "FAIL"
+verdict = "PASS" if gate_fail and gate_p95 and (gate_p99 or p99 is None) else "FAIL"
 label = "10K" if int(vus) == 10000 else "100K"
 basename = f"load-test-{label.lower()}-{now.split()[0]}"
 
@@ -312,20 +335,6 @@ cat "$AGG"
 echo "==== WROTE ===="
 echo "$OUT_JSON"
 echo "$OUT_MD"
-
-# Surface worker failures without blocking cleanup.
-failed_workers=0
-for w in $(seq 0 $((WORKERS - 1))); do
-  st=$(unproxy aws codebuild batch-get-builds --ids "${BUILD_IDS[$w]}" --query 'builds[0].buildStatus' --output text 2>/dev/null || echo UNKNOWN)
-  if [[ "$st" != "SUCCEEDED" ]]; then
-    echo "worker=$w build_status=$st"
-    failed_workers=$((failed_workers + 1))
-  fi
-done
-
-if [[ "$failed_workers" -gt 0 ]]; then
-  echo "WARNING: $failed_workers worker build(s) did not succeed"
-fi
 
 # Keep exit 0 so cleanup still runs; gate evaluation is informational for exploratory runs.
 exit 0
