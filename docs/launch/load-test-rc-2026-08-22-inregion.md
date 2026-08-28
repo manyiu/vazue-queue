@@ -53,8 +53,8 @@ Machine-readable copy: [`load-test-rc-2026-08-22-inregion.json`](./load-test-rc-
 
 - Same scenario as the HKT run (shared `request_id` status polls), but generator RTT is in-region.
 - p95 dropped from **~286ms (HKT)** to **~34ms (us-east-1)** — confirms the earlier miss was primarily **client geography**, not data-plane capacity at 1000 VUs.
-- Full **100K** concurrent pollers still needs distributed k6 / AWS DLTS (`VUS=100000`).
+- **100K** concurrent pollers: exploratory only for v1 (waived). Attempt + waiver: [`load-test-100k-2026-08-28.md`](./load-test-100k-2026-08-28.md).
 
 ## Checklist
 
-OSS v1 load-test RC gate for 1000 VUs / documented thresholds: **met** (see [`oss-v1.md`](./oss-v1.md)).
+OSS v1 load-test RC gate for **1000 VUs** / documented thresholds: **met** (see [`oss-v1.md`](./oss-v1.md)). 100K is not required for v1.

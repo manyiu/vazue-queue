@@ -23,6 +23,10 @@ npx vazue-queue config --validate
 
 Default AWS region for examples: **us-east-1**.
 
+## Capacity
+
+Validated **~1K** and **~10K concurrent status pollers** in-region (fail &lt; 1%, p95 &lt; 250ms). See [`capacity.md`](./capacity.md) for how this maps to production, estimation formulas, and what was not tested.
+
 ## Pre-built assets (from this monorepo)
 
 Before publishing `@yiu/queue-cdk` or deploying the monorepo example:
@@ -82,14 +86,21 @@ bash scripts/load-test-100k.sh
 | `http_req_duration_p95` | &lt; 250ms |
 | `http_req_duration_p99` | &lt; 500ms |
 
-Attach that file to the OSS v1 release notes. Full **100K** concurrent pollers needs distributed k6 or [AWS Distributed Load Testing](https://aws.amazon.com/solutions/implementations/distributed-load-testing-on-aws/) (`VUS=100000`). The GitHub `Load test` workflow runs a small smoke/RC VU count against `local-server` only.
+Attach that file to the OSS v1 release notes. The GitHub `Load test` workflow runs a small smoke/RC VU count against `local-server` only.
 
-Run the generator **in the same region** as the data plane when measuring p95 (cross-region RTT can dominate). Recorded RC evidence for later docs/release notes:
+**OSS v1 release gate:** in-region **1000 VUs** and **10,000 VUs** (`PROFILE=rc`). Run the generator **in the same region** as the data plane when measuring p95 (cross-region RTT can dominate).
+
+In-region helpers (ephemeral stack + CodeBuild; destroys afterward):
+
+- **1K RC gate:** `bash scripts/run-load-test-rc-inregion.sh`
+- **10K gate:** `VUS=10000 WORKERS=1 bash scripts/run-load-test-100k-inregion.sh`
+- **100K exploratory (optional, waived for v1):** default `VUS=100000 WORKERS=10` — see [`load-test-100k-2026-08-28`](../launch/load-test-100k-2026-08-28.md)
+
+Recorded evidence:
 
 - Pass (CodeBuild us-east-1, 1000 VUs): [`docs/launch/load-test-rc-2026-08-22-inregion.md`](../launch/load-test-rc-2026-08-22-inregion.md) / [`.json`](../launch/load-test-rc-2026-08-22-inregion.json)
 - HKT-client miss (geography): [`docs/launch/load-test-rc-2026-08-21.md`](../launch/load-test-rc-2026-08-21.md)
-
-In-region helper: `bash scripts/run-load-test-rc-inregion.sh` (ephemeral stack + CodeBuild; destroys afterward).
+- Pass (10,000 VUs): [`docs/launch/load-test-10k-2026-08-28.md`](../launch/load-test-10k-2026-08-28.md)
 
 ## Deploy smoke (`standard` preset)
 

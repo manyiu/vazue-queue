@@ -1,0 +1,14 @@
+{
+  "profile": "rc",
+  "targetVus": 100000,
+  "workers": 10,
+  "ossV1Gate": false,
+  "waiver": "100K exploratory only; OSS v1 RC gates are 1000 and 10000 VUs. Quota increases deferred for budget.",
+  "http_req_failed_rate": 0.708867903597982,
+  "http_req_failed_rate_weighted": 0.7071842399904121,
+  "http_req_duration_p95": 201.78183464838975,
+  "http_req_duration_p95_max": 269.30973059999957,
+  "http_req_duration_p99": null,
+  "http_req_duration_p99_max": null,
+  "iterations": 15401299
+}

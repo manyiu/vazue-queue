@@ -46,7 +46,8 @@ QUEUE_API_URL=$(unproxy aws cloudformation describe-stacks --stack-name VazueQue
 echo "QUEUE_API_URL=$QUEUE_API_URL"
 
 EVENTS_TABLE=$(unproxy aws cloudformation describe-stack-resources --stack-name VazueQueueLoadTestRc \
-  --query "StackResources[?LogicalResourceId=='QueueDataPlaneEvents462D44EF'].PhysicalResourceId" --output text)
+  --query "StackResources[?ResourceType=='AWS::DynamoDB::Table' && contains(LogicalResourceId,'Events')].PhysicalResourceId" \
+  --output text)
 unproxy aws dynamodb put-item --table-name "$EVENTS_TABLE" --item "{
   \"tenantId\":{\"S\":\"default\"},
   \"eventId\":{\"S\":\"$EVENT_ID\"},
