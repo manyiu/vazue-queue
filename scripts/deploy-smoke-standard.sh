@@ -15,6 +15,8 @@ STACK_NAME=VazueQueueDeploySmokeStandard
 REGION=us-east-1
 EVENT_ID=deploy-smoke
 RETURN_URL=https://example.com/checkout
+# Avoid hung smoke runs on stalled HTTP connections.
+CURL_OPTS=(--connect-timeout 10 --max-time 30)
 
 cleanup() {
   if [[ "${SKIP_DESTROY:-}" == "1" ]]; then
@@ -23,7 +25,7 @@ cleanup() {
   fi
   set +e
   echo "==> destroy stack"
-  (cd "$ROOT/examples/deploy-smoke-standard" && unproxy npx cdk destroy --force)
+  (cd "$ROOT/examples/deploy-smoke-standard" && unproxy npx cdk destroy "$STACK_NAME" --force)
   echo "==> destroy done"
 }
 trap cleanup EXIT
@@ -37,6 +39,9 @@ export CDK_DEFAULT_ACCOUNT="$ACCOUNT"
 echo "account=$ACCOUNT region=$REGION"
 
 if [[ "${SKIP_DEPLOY:-}" != "1" ]]; then
+  echo "==> pnpm install"
+  (cd "$ROOT" && pnpm install --frozen-lockfile)
+
   if [[ "${SKIP_BUILD:-}" != "1" ]]; then
     echo "==> build lambda artifacts"
     REQUIRE_ARTIFACTS=1 bash "$ROOT/scripts/build-lambda-assets.sh"
@@ -47,14 +52,11 @@ if [[ "${SKIP_DEPLOY:-}" != "1" ]]; then
     echo "==> SKIP_BUILD=1"
   fi
 
-  echo "==> pnpm install (deploy-smoke example)"
-  (cd "$ROOT" && pnpm install --frozen-lockfile)
-
   echo "==> build @yiu/queue-cdk (deploy uses dist/)"
   pnpm --filter @yiu/queue-cdk build
 
   echo "==> deploy stack ($STACK_NAME)"
-  (cd "$ROOT/examples/deploy-smoke-standard" && unproxy npx cdk deploy --require-approval never)
+  (cd "$ROOT/examples/deploy-smoke-standard" && unproxy npx cdk deploy "$STACK_NAME" --require-approval never)
 fi
 
 QUEUE_API_URL=$(unproxy aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
@@ -93,7 +95,7 @@ poll_status() {
   local rid=$2
   local code
   for _ in $(seq 1 90); do
-    code=$(curl -sS -o /tmp/vazue-smoke-status.json -w '%{http_code}' \
+    code=$(curl -sS "${CURL_OPTS[@]}" -o /tmp/vazue-smoke-status.json -w '%{http_code}' \
       "$base/v1/events/$EVENT_ID/status?request_id=$rid" || true)
     if [[ "$code" == "200" ]]; then
       cat /tmp/vazue-smoke-status.json
@@ -112,11 +114,11 @@ enroll_and_status() {
   local check_health=${3:-1}
   echo "==> smoke $label ($base)"
   if [[ "$check_health" == "1" ]]; then
-    curl -sf "$base/health" >/dev/null
-    curl -sf "$base/ready" >/dev/null
+    curl -sf "${CURL_OPTS[@]}" "$base/health" >/dev/null
+    curl -sf "${CURL_OPTS[@]}" "$base/ready" >/dev/null
   fi
   local enroll
-  enroll=$(curl -sS -X POST "$base/v1/events/$EVENT_ID/enroll" \
+  enroll=$(curl -sS "${CURL_OPTS[@]}" -X POST "$base/v1/events/$EVENT_ID/enroll" \
     -H 'Content-Type: application/json' \
     -d "{\"return_url\":\"$RETURN_URL\"}")
   local rid
@@ -130,7 +132,7 @@ enroll_and_status() {
 
 echo "==> waiting room static asset (poll until CloudFront serves HTML)"
 for i in $(seq 1 60); do
-  code=$(curl -sS -o /tmp/vazue-wr.html -w '%{http_code}' "$WAITING_ROOM_URL/" || true)
+  code=$(curl -sS "${CURL_OPTS[@]}" -o /tmp/vazue-wr.html -w '%{http_code}' "$WAITING_ROOM_URL/" || true)
   if [[ "$code" == "200" ]] && grep -qi 'html' /tmp/vazue-wr.html; then
     echo "waiting room ready (attempt $i)"
     break
