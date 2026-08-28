@@ -91,6 +91,7 @@ export class VazueQueue extends Construct {
       );
 
       this.distribution = new cloudfront.Distribution(this, 'WaitingRoomDistribution', {
+        defaultRootObject: 'index.html',
         defaultBehavior: {
           origin: origins.S3BucketOrigin.withOriginAccessControl(this.waitingRoomBucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -206,6 +207,7 @@ export class VazueQueue extends Construct {
           autoDeleteObjects: removal === cdk.RemovalPolicy.DESTROY,
         });
         adminDist = new cloudfront.Distribution(this, 'AdminPortalDistribution', {
+          defaultRootObject: 'index.html',
           defaultBehavior: {
             origin: origins.S3BucketOrigin.withOriginAccessControl(adminBucket),
             viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
