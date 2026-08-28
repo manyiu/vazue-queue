@@ -1,0 +1,17 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/app.ts",
+  "context": {
+    "vazue-queue": {
+      "domainName": "smoke-standard.example.com",
+      "preset": "standard",
+      "awsRegion": "us-east-1",
+      "security": {
+        "removalPolicy": "destroy",
+        "botProtection": { "mode": "off" }
+      },
+      "tags": {
+        "purpose": "deploy-smoke-standard"
+      }
+    }
+  }
+}

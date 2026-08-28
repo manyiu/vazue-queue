@@ -91,6 +91,16 @@ Run the generator **in the same region** as the data plane when measuring p95 (c
 
 In-region helper: `bash scripts/run-load-test-rc-inregion.sh` (ephemeral stack + CodeBuild; destroys afterward).
 
+## Deploy smoke (`standard` preset)
+
+Ephemeral us-east-1 deploy of the recommended **`standard`** preset (CloudFront waiting room + API behaviors), contract smoke, then destroy:
+
+```bash
+bash scripts/deploy-smoke-standard.sh
+```
+
+Writes `docs/launch/deploy-smoke-standard-YYYY-MM-DD.md` on success. Use `SKIP_DESTROY=1` to inspect the stack afterward.
+
 ## Frontend assets for deploy
 
 ```bash

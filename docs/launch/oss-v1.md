@@ -35,7 +35,7 @@ Only these packages (enforced by `scripts/check-publish-boundary.sh`):
 `packages/saas/` and connector/frontend apps stay private. Release workflow publishes with **npm provenance** (`.github/workflows/release.yml`).
 
 - [x] Changeset bump to **1.0.0** + publish (`@yiu/queue-cdk`, `create-vazue-queue`, `@yiu/queue-sdk`)
-- [ ] Confirm npm provenance attestations on the three packages (OIDC CI publish; bootstrap may lack provenance)
+- [x] Confirm npm provenance attestations on the three packages (`1.0.1` via OIDC Release workflow)
 
 ## Docs / community
 

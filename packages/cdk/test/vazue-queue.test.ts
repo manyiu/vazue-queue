@@ -32,6 +32,11 @@ describe('VazueQueue presets', () => {
     const template = synthPreset('standard');
     template.resourceCountIs('AWS::CloudFront::Distribution', 1);
     template.resourceCountIs('AWS::DynamoDB::Table', 7);
+    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({
+        DefaultRootObject: 'index.html',
+      }),
+    });
     template.hasResourceProperties('AWS::CloudFront::CachePolicy', {
       CachePolicyConfig: Match.objectLike({
         DefaultTTL: 2,
@@ -51,6 +56,11 @@ describe('VazueQueue presets', () => {
     template.resourceCountIs('AWS::WAFv2::WebACL', 1);
     template.resourceCountIs('AWS::ApiGatewayV2::Api', 2);
     template.resourceCountIs('AWS::CloudFront::Distribution', 2);
+    template.allResourcesProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({
+        DefaultRootObject: 'index.html',
+      }),
+    });
     template.hasResourceProperties('AWS::Cognito::UserPoolDomain', {
       Domain: Match.anyValue(),
     });
