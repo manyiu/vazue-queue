@@ -4,6 +4,8 @@ Honest guidance for planning flash-traffic events. These are **measured in-regio
 
 ## Validated (in-region load tests)
 
+### Status polling
+
 Tests use `scripts/load-test-status.js`: each virtual user polls `GET /v1/events/{id}/status` with adaptive `sleep(poll_after_seconds)` — the same pattern as the waiting room UI.
 
 | Concurrent status pollers | Preset tested | Fail rate | p95 latency | Record |
@@ -12,6 +14,14 @@ Tests use `scripts/load-test-status.js`: each virtual user polls `GET /v1/events
 | **~10,000** | `minimal` | 0.03% | ~39ms | [`load-test-10k-2026-08-28.md`](../launch/load-test-10k-2026-08-28.md) |
 | **~1,000** | `standard` (CloudFront status) | 0% | ~3ms | [`load-test-standard-2026-08-29.md`](../launch/load-test-standard-2026-08-29.md) |
 | **~100,000** | `minimal` (10 workers) | ~71% | ~202ms* | [`load-test-100k-2026-08-28.md`](../launch/load-test-100k-2026-08-28.md) — **not a product gate**; throttled without quota increases |
+
+### Enroll burst
+
+Tests use `scripts/load-test-enroll.js`: each virtual user performs one unique `POST …/enroll` (flash-traffic / on-sale shape). Gates: fail &lt; 1%, enroll p95 &lt; 500ms, enroll p99 &lt; 1000ms.
+
+| Concurrent unique enrolls | Preset tested | Fail rate | p95 latency | Record |
+|---------------------------|---------------|-----------|-------------|--------|
+| **~1,000** | `minimal` | 0.1% | ~1406ms | [`load-test-enroll-2026-08-29.md`](../launch/load-test-enroll-2026-08-29.md) |
 
 \*p95 on **successful** requests only when fail rate is high.
 
@@ -26,10 +36,10 @@ Tests use `scripts/load-test-status.js`: each virtual user polls `GET /v1/events
 | Stack shape | `minimal` — API Gateway → Lambda → DynamoDB | **`standard`** adds CloudFront; status polls can be **edge-cached** (2–30s TTL keyed by `request_id`) → **less origin load than our tests** for repeated polls |
 | Visitor keys | All pollers share **one** `request_id` (worst-case hot read) | One DynamoDB item per visitor — **spread read load** |
 | Poll interval | Near-front visitor → often **2s** between polls | Back of queue → up to **30s** — **lower RPS** per poller when far from front |
-| Enroll burst | One enroll in k6 `setup()` | Flash traffic **enrolls many new visitors** — not characterized by these status-only tests |
+| Enroll burst | `scripts/load-test-enroll.js` (one unique enroll per VU) | Flash traffic **enrolls many new visitors** — run in-region to record; status-only tests still use one shared `request_id` |
 | AWS quotas | Default account limits (Lambda concurrency **1,000**/region, API Gateway RPS limits) | Same unless you request increases |
 
-**Summary:** Status polling behavior is realistic. The **`minimal` tests are a reasonable lower bound** for origin stress; **`standard` + CloudFront may perform better** for steady polling. Enroll spikes and global RTT are **not** fully covered. Treat 10K as validated for **concurrent pollers**, not “10K enrolls per second.”
+**Summary:** Status polling behavior is realistic. The **`minimal` tests are a reasonable lower bound** for origin stress; **`standard` + CloudFront may perform better** for steady polling. **Enroll burst at 1K concurrent unique enrolls:** ~0.1% fail, enroll p95 ~1.4s (see [`load-test-enroll-2026-08-29.md`](../launch/load-test-enroll-2026-08-29.md)) — higher latency than status GET; use `enrollBuffer: true` (`standard`/`full` presets) to absorb spikes. Global RTT is **not** fully covered. Treat 10K as validated for **concurrent pollers**, not “10K enrolls per second.”
 
 ## Why 10K pollers ≠ 10K Lambdas at once
 
@@ -77,7 +87,10 @@ Without quota increases, **~100K concurrent pollers** hit throttling in our expl
 # 1K RC gate (ephemeral stack + CodeBuild)
 bash scripts/run-load-test-rc-inregion.sh
 
-# 10K (single worker)
+# 1K enroll burst (unique enroll per VU)
+bash scripts/run-load-test-enroll-inregion.sh
+
+# 10K status pollers (single worker)
 SKIP_BUILD=1 VUS=10000 WORKERS=1 bash scripts/run-load-test-100k-inregion.sh
 ```
 

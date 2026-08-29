@@ -128,6 +128,31 @@ importers:
         specifier: ^5.9.2
         version: 5.9.3
 
+  examples/load-test-enroll:
+    dependencies:
+      '@yiu/queue-cdk':
+        specifier: workspace:*
+        version: link:../../packages/cdk
+      aws-cdk-lib:
+        specifier: ^2.208.0
+        version: 2.264.0(constructs@10.8.1)
+      constructs:
+        specifier: ^10.4.2
+        version: 10.8.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.2.0
+        version: 24.13.3
+      aws-cdk:
+        specifier: ^2.208.0
+        version: 2.1136.0
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@24.13.3)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
   examples/load-test-rc:
     dependencies:
       '@yiu/queue-cdk':
