@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use aws_sdk_sqs::Client as SqsClient;
 use platform::{Capabilities, DeploymentProfile};
 use queue_kernel::JwtKeys;
 
@@ -14,6 +15,9 @@ pub struct AppState {
     pub profile: DeploymentProfile,
     pub capabilities: Capabilities,
     pub enroll_via_sqs: bool,
+    /// Reused across buffered enroll requests (cold start only).
+    pub enroll_sqs: Option<SqsClient>,
+    pub enroll_queue_url: Option<String>,
 }
 
 impl AppState {
@@ -26,6 +30,8 @@ impl AppState {
             profile: DeploymentProfile::Oss,
             capabilities: Capabilities::oss_full(),
             enroll_via_sqs: false,
+            enroll_sqs: None,
+            enroll_queue_url: None,
         }
     }
 }

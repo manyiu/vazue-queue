@@ -32,6 +32,13 @@ pub async fn build_aws_state() -> Result<AppState, String> {
         platform::DeploymentProfile::Saas => platform::Capabilities::saas_free(),
         platform::DeploymentProfile::Oss => platform::Capabilities::oss_full(),
     };
+    let enroll_via_sqs = std::env::var("ENROLL_VIA_SQS").ok().as_deref() == Some("1");
+    let enroll_queue_url = std::env::var("ENROLL_QUEUE_URL").ok();
+    let enroll_sqs = if enroll_via_sqs && enroll_queue_url.is_some() {
+        Some(aws_sdk_sqs::Client::new(&conf))
+    } else {
+        None
+    };
     Ok(AppState {
         store: Arc::new(store),
         keys: Arc::new(JwtKeys::from_hmac_secret(&secret)),
@@ -39,7 +46,9 @@ pub async fn build_aws_state() -> Result<AppState, String> {
         tenant_id,
         profile,
         capabilities,
-        enroll_via_sqs: std::env::var("ENROLL_VIA_SQS").ok().as_deref() == Some("1"),
+        enroll_via_sqs,
+        enroll_sqs,
+        enroll_queue_url,
     })
 }
 
@@ -111,41 +120,37 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
         return json_response(409, json!({ "error": e }));
     }
 
-    if state.enroll_via_sqs {
-        if let Ok(queue_url) = std::env::var("ENROLL_QUEUE_URL") {
-            // Pre-assign ids so clients can poll status immediately (404 until worker finishes).
-            let session_id = body
-                .session_id
-                .clone()
-                .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-            let request_id = body
-                .request_id
-                .clone()
-                .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-            body.session_id = Some(session_id.clone());
-            body.request_id = Some(request_id.clone());
+    if let (Some(sqs), Some(queue_url)) = (&state.enroll_sqs, &state.enroll_queue_url) {
+        // Pre-assign ids so clients can poll status immediately (404 until worker finishes).
+        let session_id = body
+            .session_id
+            .clone()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        let request_id = body
+            .request_id
+            .clone()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+        body.session_id = Some(session_id.clone());
+        body.request_id = Some(request_id.clone());
 
-            let conf = aws_config::load_defaults(BehaviorVersion::latest()).await;
-            let sqs = aws_sdk_sqs::Client::new(&conf);
-            let payload = serde_json::to_string(&body).unwrap_or_default();
-            sqs.send_message()
-                .queue_url(queue_url)
-                .message_body(payload)
-                .send()
-                .await
-                .map_err(|e| Error::from(e.to_string()))?;
-            return json_response(
-                202,
-                json!({
-                    "request_id": request_id,
-                    "session_id": session_id,
-                    "position": 0,
-                    "status": "enrolled",
-                }),
-            );
-        }
+        let payload = serde_json::to_string(&body).unwrap_or_default();
+        sqs.send_message()
+            .queue_url(queue_url)
+            .message_body(payload)
+            .send()
+            .await
+            .map_err(|e| Error::from(e.to_string()))?;
+        return json_response(
+            202,
+            json!({
+                "request_id": request_id,
+                "session_id": session_id,
+                "position": 0,
+                "status": "enrolled",
+            }),
+        );
     }
 
     match state

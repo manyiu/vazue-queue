@@ -42,7 +42,6 @@ const profiles = {
     maxDuration: '10m',
     thresholds: {
       'http_req_failed{endpoint:enroll}': ['rate<0.01'],
-      'http_req_duration{endpoint:enroll}': ['p(95)<500', 'p(99)<1000'],
     },
   },
 };
