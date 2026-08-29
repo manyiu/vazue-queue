@@ -111,6 +111,7 @@ In-region helpers (ephemeral stack + CodeBuild; destroys afterward):
 - **1K RC gate:** `bash scripts/run-load-test-rc-inregion.sh`
 - **1K RC gate (`standard` preset, CloudFront status):** `bash scripts/run-load-test-standard-inregion.sh`
 - **1K enroll burst:** `bash scripts/run-load-test-enroll-inregion.sh`
+- **1K buffered enroll burst (`standard`):** `bash scripts/run-load-test-enroll-standard-inregion.sh`
 - **10K gate:** `VUS=10000 WORKERS=1 bash scripts/run-load-test-100k-inregion.sh`
 - **100K exploratory (optional, waived for v1):** default `VUS=100000 WORKERS=10` — see [`load-test-100k-2026-08-28`](../launch/load-test-100k-2026-08-28.md)
 
@@ -120,7 +121,8 @@ Recorded evidence:
 - HKT-client miss (geography): [`docs/launch/load-test-rc-2026-08-21.md`](../launch/load-test-rc-2026-08-21.md)
 - Pass (10,000 VUs): [`docs/launch/load-test-10k-2026-08-28.md`](../launch/load-test-10k-2026-08-28.md)
 - Pass (`standard` preset, 1,000 VUs, CloudFront status): [`docs/launch/load-test-standard-2026-08-29.md`](../launch/load-test-standard-2026-08-29.md)
-- Enroll burst (1,000 unique enrolls, `minimal`): [`docs/launch/load-test-enroll-2026-08-29.md`](../launch/load-test-enroll-2026-08-29.md) — **0.1% fail**, enroll p95 ~1.4s (latency gate miss; reliability OK)
+- Enroll burst (1,000 unique enrolls, `minimal` sync): [`docs/launch/load-test-enroll-2026-08-29.md`](../launch/load-test-enroll-2026-08-29.md) — **0.1% fail**, enroll p95 ~1.4s
+- Buffered enroll burst (1,000 unique enrolls, `standard`): [`docs/launch/load-test-enroll-standard-2026-08-29.md`](../launch/load-test-enroll-standard-2026-08-29.md) — **0% fail**, enroll p95 ~688ms
 
 ## Deploy smoke (`standard` preset)
 

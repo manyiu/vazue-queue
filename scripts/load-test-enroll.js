@@ -6,6 +6,8 @@ const EVENT = __ENV.EVENT_ID || 'demo';
 const PROFILE = (__ENV.PROFILE || 'smoke').toLowerCase();
 const VUS = Number(__ENV.VUS || (PROFILE === 'rc' ? 1000 : 50));
 const POLL_AFTER_ENROLL = __ENV.POLL_AFTER_ENROLL === '1';
+const PRESET = __ENV.PRESET_NAME || 'minimal';
+const ENROLL_BUFFER = __ENV.ENROLL_BUFFER === '1';
 
 /** Profiles:
  *  smoke — local gate (50 unique enrolls)
@@ -98,6 +100,8 @@ export function handleSummary(data) {
     targetVus: VUS,
     workerId: __ENV.WORKER_ID || null,
     scenario: 'enroll_burst',
+    preset: PRESET,
+    enroll_buffer: ENROLL_BUFFER,
     poll_after_enroll: POLL_AFTER_ENROLL,
     http_req_failed_rate: enrollFailed ? enrollFailed.values.rate : null,
     http_req_duration_p50: enrollDuration ? enrollDuration.values['p(50)'] : null,
