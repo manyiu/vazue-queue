@@ -256,6 +256,7 @@ gate_p95 = p95 is not None and p95 < 250
 gate_p99 = p99 is not None and p99 < 500
 verdict = "PASS" if gate_fail and gate_p95 and (gate_p99 or p99 is None) else "FAIL"
 basename = f"load-test-standard-{now.split()[0]}"
+stack_name = "VazueQueueLoadTestStandard"
 
 md = f"""# Load test standard preset — {now.split()[0]}
 
@@ -287,7 +288,7 @@ In-region `PROFILE=rc` run at **{vus}** concurrent status pollers on the **`stan
 | Date | {now} |
 | AWS account | `{account}` |
 | Region | **{region}** |
-| Stack | `{STACK}` (destroyed after run unless `SKIP_DESTROY=1`) |
+| Stack | `{stack_name}` (destroyed after run unless `SKIP_DESTROY=1`) |
 | Preset | **`standard`** (CloudFront status cache + waiting room) |
 | Enroll buffer | **off** |
 | Lambda memory | **512 MB** |
@@ -306,7 +307,7 @@ Machine-readable copy: [`{basename}.json`](./{basename}.json)
 ```json
 {json.dumps(report, indent=2)}
 ```
-""".replace("{STACK}", "VazueQueueLoadTestStandard")
+"""
 open(out_md, "w").write(md)
 print(out_md)
 PY

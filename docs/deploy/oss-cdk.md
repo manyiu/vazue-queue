@@ -105,6 +105,7 @@ Recorded evidence:
 - Pass (CodeBuild us-east-1, 1000 VUs): [`docs/launch/load-test-rc-2026-08-22-inregion.md`](../launch/load-test-rc-2026-08-22-inregion.md) / [`.json`](../launch/load-test-rc-2026-08-22-inregion.json)
 - HKT-client miss (geography): [`docs/launch/load-test-rc-2026-08-21.md`](../launch/load-test-rc-2026-08-21.md)
 - Pass (10,000 VUs): [`docs/launch/load-test-10k-2026-08-28.md`](../launch/load-test-10k-2026-08-28.md)
+- Pass (`standard` preset, 1,000 VUs, CloudFront status): [`docs/launch/load-test-standard-2026-08-29.md`](../launch/load-test-standard-2026-08-29.md)
 
 ## Deploy smoke (`standard` preset)
 
