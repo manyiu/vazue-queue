@@ -61,8 +61,8 @@ k6 exited non-zero because the p95 threshold was crossed. No functional errors (
 ## Follow-ups (optional, not done)
 
 1. Re-run `PROFILE=rc` with k6 in **us-east-1**.
-2. Prefer **`standard`** if measuring cached status-poll latency as visitors experience it.
-3. Capture full k6 percentile table (p50/p90/p95/p99) in the report writer for future runs.
+2. Prefer **`standard`** if measuring cached status-poll latency as visitors experience it — runner: `bash scripts/run-load-test-standard-inregion.sh`.
+3. Capture full k6 percentile table (p50/p90/p95/p99) in the report writer for future runs — **done** (`load-test-status.js` + standard runner markdown).
 4. Full **100K** VUs still requires distributed k6 / AWS DLTS (`VUS=100000`).
 
 ## Checklist link

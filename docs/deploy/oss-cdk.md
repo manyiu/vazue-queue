@@ -83,8 +83,11 @@ bash scripts/load-test-100k.sh
 | Field | RC gate |
 |-------|---------|
 | `http_req_failed_rate` | &lt; 0.01 |
+| `http_req_duration_p50` / `p90` | informational |
 | `http_req_duration_p95` | &lt; 250ms |
 | `http_req_duration_p99` | &lt; 500ms |
+
+Set `POLL_BASE_URL` to poll status via CloudFront while enrolling on `QUEUE_API_URL` (used by the `standard` preset runner).
 
 Attach that file to the OSS v1 release notes. The GitHub `Load test` workflow runs a small smoke/RC VU count against `local-server` only.
 
@@ -93,6 +96,7 @@ Attach that file to the OSS v1 release notes. The GitHub `Load test` workflow ru
 In-region helpers (ephemeral stack + CodeBuild; destroys afterward):
 
 - **1K RC gate:** `bash scripts/run-load-test-rc-inregion.sh`
+- **1K RC gate (`standard` preset, CloudFront status):** `bash scripts/run-load-test-standard-inregion.sh`
 - **10K gate:** `VUS=10000 WORKERS=1 bash scripts/run-load-test-100k-inregion.sh`
 - **100K exploratory (optional, waived for v1):** default `VUS=100000 WORKERS=10` — see [`load-test-100k-2026-08-28`](../launch/load-test-100k-2026-08-28.md)
 

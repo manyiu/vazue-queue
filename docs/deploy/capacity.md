@@ -10,6 +10,7 @@ Tests use `scripts/load-test-status.js`: each virtual user polls `GET /v1/events
 |---------------------------|---------------|-----------|-------------|--------|
 | **~1,000** | `minimal` | 0% | ~34ms | [`load-test-rc-2026-08-22-inregion.md`](../launch/load-test-rc-2026-08-22-inregion.md) |
 | **~10,000** | `minimal` | 0.03% | ~39ms | [`load-test-10k-2026-08-28.md`](../launch/load-test-10k-2026-08-28.md) |
+| **~1,000** | `standard` (CloudFront status) | *(run `scripts/run-load-test-standard-inregion.sh`)* | — | — |
 | **~100,000** | `minimal` (10 workers) | ~71% | ~202ms* | [`load-test-100k-2026-08-28.md`](../launch/load-test-100k-2026-08-28.md) — **not a product gate**; throttled without quota increases |
 
 \*p95 on **successful** requests only when fail rate is high.
