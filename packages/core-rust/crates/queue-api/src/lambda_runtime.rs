@@ -149,7 +149,8 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
     body.event_id = event_id.clone();
 
     if let Err(e) = state.verify_enroll_turnstile(&body).await {
-        return json_response(409, json!({ "error": e }));
+        let status = if e == "captcha failed" { 409 } else { 502 };
+        return json_response(status, json!({ "error": e }));
     }
 
     if let (Some(sqs), Some(queue_url)) = (&state.enroll_sqs, &state.enroll_queue_url) {

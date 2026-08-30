@@ -46,12 +46,22 @@ impl AppState {
             return Ok(());
         }
         let token = body.turnstile_token.as_deref().unwrap_or("");
+        let local = std::env::var("VAZUE_LOCAL").ok().as_deref() == Some("1");
         let secret = self
             .turnstile_secret
             .clone()
             .or_else(|| std::env::var("TURNSTILE_SECRET").ok())
-            .unwrap_or_else(|| "bypass".into());
-        let local = std::env::var("VAZUE_LOCAL").ok().as_deref() == Some("1") || secret == "bypass";
+            .filter(|s| !s.is_empty());
+        let secret = match secret {
+            Some(s) => s,
+            None if local => "bypass".into(),
+            None => {
+                return Err(
+                    "TURNSTILE_SECRET or TURNSTILE_SECRET_ARN required when bot protection uses challenges"
+                        .into(),
+                );
+            }
+        };
         let ok = platform::verify_turnstile(&secret, token, None, local).await?;
         if !ok {
             return Err("captcha failed".into());
