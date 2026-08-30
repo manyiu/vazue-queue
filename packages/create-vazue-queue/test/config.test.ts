@@ -26,6 +26,40 @@ describe('validateQueueCliConfig', () => {
       validateQueueCliConfig({ domainName: 'queue.example.com', preset: 'enterprise' }),
     ).toThrow(/preset/);
   });
+
+  it('rejects challenge mode without turnstileSecretArn', () => {
+    expect(() =>
+      validateQueueCliConfig({
+        domainName: 'queue.example.com',
+        preset: 'standard',
+        awsRegion: 'us-east-1',
+        security: {
+          botProtection: {
+            mode: 'challenge_always',
+            turnstileSiteKey: '0x4AAAA',
+          },
+        },
+      }),
+    ).toThrow(/turnstileSecretArn/);
+  });
+
+  it('accepts challenge mode with site key and secret ARN', () => {
+    expect(() =>
+      validateQueueCliConfig({
+        domainName: 'queue.example.com',
+        preset: 'standard',
+        awsRegion: 'us-east-1',
+        security: {
+          botProtection: {
+            mode: 'challenge_suspicious',
+            turnstileSiteKey: '0x4AAAA',
+            turnstileSecretArn:
+              'arn:aws:secretsmanager:us-east-1:123456789012:secret:turnstile-AbCdEf',
+          },
+        },
+      }),
+    ).not.toThrow();
+  });
 });
 
 describe('estimateOssEventCost', () => {

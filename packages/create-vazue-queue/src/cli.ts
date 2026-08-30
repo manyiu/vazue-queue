@@ -89,10 +89,23 @@ async function wizard(defaults?: Partial<Config>): Promise<Config> {
   if (p.isCancel(botMode)) process.exit(0);
 
   let turnstileSiteKey: string | undefined;
+  let turnstileSecretArn: string | undefined;
   if (botMode !== 'off' && botMode !== 'rate_limit_only') {
-    const key = await p.text({ message: 'Turnstile site key (or leave empty)', initialValue: '' });
+    const key = await p.text({
+      message: 'Turnstile site key (public widget key from Cloudflare)',
+      initialValue: defaults?.security?.botProtection?.turnstileSiteKey ?? '',
+      validate: (v) => (!v || !String(v).trim() ? 'Required for challenge modes' : undefined),
+    });
     if (p.isCancel(key)) process.exit(0);
-    if (key) turnstileSiteKey = String(key);
+    turnstileSiteKey = String(key).trim();
+    const arn = await p.text({
+      message: 'Turnstile secret ARN (Secrets Manager — not the secret value)',
+      placeholder: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:turnstile-AbCdEf',
+      initialValue: defaults?.security?.botProtection?.turnstileSecretArn ?? '',
+      validate: (v) => (!v || !String(v).trim() ? 'Required for challenge modes' : undefined),
+    });
+    if (p.isCancel(arn)) process.exit(0);
+    turnstileSecretArn = String(arn).trim();
   }
 
   const brandName = await p.text({
@@ -139,6 +152,7 @@ async function wizard(defaults?: Partial<Config>): Promise<Config> {
       botProtection: {
         mode: botMode,
         ...(turnstileSiteKey ? { turnstileSiteKey } : {}),
+        ...(turnstileSecretArn ? { turnstileSecretArn } : {}),
       },
       ...(jwtHmacSecret ? { jwtHmacSecret } : {}),
     },
