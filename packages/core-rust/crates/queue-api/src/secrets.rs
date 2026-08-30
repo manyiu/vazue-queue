@@ -54,6 +54,7 @@ async fn load_secret_from_env_or_arn(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_env::lock_env;
 
     struct EnvGuard {
         set: Vec<(&'static str, Option<String>)>,
@@ -90,6 +91,7 @@ mod tests {
 
     #[test]
     fn bot_protection_modes() {
+        let _lock = lock_env();
         let mut env = EnvGuard::new();
         env.set("BOT_PROTECTION_MODE", "off");
         assert!(!bot_protection_needs_turnstile());
@@ -101,6 +103,7 @@ mod tests {
 
     #[tokio::test]
     async fn turnstile_secret_from_plain_env() {
+        let _lock = lock_env();
         let mut env = EnvGuard::new();
         env.set("TURNSTILE_SECRET", "test-turnstile-key");
         env.remove("TURNSTILE_SECRET_ARN");
