@@ -37,7 +37,7 @@ jobs:
           # Changesets ignore lists @vazue/saas-*; only OSS packages publish.
           # Provenance + OIDC: id-token write + npm trusted publisher on manyiu/vazue-queue/release.yml.
           # Build Lambda zips only on the publish path (not when opening Version Packages PR).
-          publish: bash -c 'chmod +x scripts/build-lambda-assets.sh && REQUIRE_ARTIFACTS=1 scripts/build-lambda-assets.sh && pnpm exec changeset publish'
+          publish: bash scripts/publish-oss.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Assert SaaS packages stayed private
