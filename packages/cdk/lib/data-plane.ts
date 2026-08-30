@@ -77,14 +77,21 @@ export class QueueDataPlane extends Construct {
         ? lambda.Architecture.ARM_64
         : lambda.Architecture.X86_64;
 
-    let commonEnv: Record<string, string> = {
+    let baseEnv: Record<string, string> = {
       VAZUE_DEPLOYMENT_PROFILE: config.features.stripe ? 'saas' : 'oss',
       TENANT_ID: 'default',
+      BOT_PROTECTION_MODE: config.security.botProtection.mode ?? 'off',
+    };
+    if (config.security.botProtection.turnstileSecretArn) {
+      baseEnv.TURNSTILE_SECRET_ARN = config.security.botProtection.turnstileSecretArn;
+    }
+
+    const dataEnv: Record<string, string> = {
+      ...baseEnv,
       SIGNING_SECRET_ARN: this.signingSecret.secretArn,
       COUNTER_SHARDS: String(config.queue.counterShards),
       TOKEN_TTL_SECONDS: String(config.queue.tokenTtlSeconds),
       VISITOR_TTL_HOURS: String(config.queue.visitorRecordTtlHours),
-      BOT_PROTECTION_MODE: config.security.botProtection.mode ?? 'off',
       VISITORS_TABLE: this.tables.Visitors.tableName,
       COUNTERS_TABLE: this.tables.Counters.tableName,
       EVENTS_TABLE: this.tables.Events.tableName,
@@ -93,13 +100,23 @@ export class QueueDataPlane extends Construct {
       ENROLL_VIA_SQS: config.features.enrollBuffer ? '1' : '0',
     };
     if (this.enrollQueue) {
-      commonEnv.ENROLL_QUEUE_URL = this.enrollQueue.queueUrl;
-    }
-    if (config.security.botProtection.turnstileSecretArn) {
-      commonEnv.TURNSTILE_SECRET_ARN = config.security.botProtection.turnstileSecretArn;
+      dataEnv.ENROLL_QUEUE_URL = this.enrollQueue.queueUrl;
     }
 
-    const mkFn = (id: string, binary: string, timeoutSec = 10) => {
+    const enrollEnv: Record<string, string> = this.enrollQueue
+      ? {
+          ...baseEnv,
+          ENROLL_VIA_SQS: '1',
+          ENROLL_QUEUE_URL: this.enrollQueue.queueUrl,
+        }
+      : dataEnv;
+
+    const mkFn = (
+      id: string,
+      binary: string,
+      timeoutSec = 10,
+      env: Record<string, string> = dataEnv,
+    ) => {
       const asset = resolveLambdaCode(binary);
       return new lambda.Function(this, id, {
         runtime: asset.runtime,
@@ -108,20 +125,26 @@ export class QueueDataPlane extends Construct {
         memorySize: config.queue.lambdaMemoryMb,
         architecture: arch,
         timeout: cdk.Duration.seconds(timeoutSec),
-        environment: commonEnv,
+        environment: env,
       });
     };
 
-    this.enrollFn = mkFn('EnrollFn', 'enroll');
+    this.enrollFn = mkFn('EnrollFn', 'enroll', 10, enrollEnv);
     this.statusFn = mkFn('StatusFn', 'status');
     this.admitFn = mkFn('AdmitFn', 'admit');
     this.reaperFn = mkFn('ServingReaperFn', 'serving-reaper', 60);
 
-    const allFns = [this.enrollFn, this.statusFn, this.admitFn, this.reaperFn];
-    for (const fn of allFns) {
+    const dataFns = [this.statusFn, this.admitFn, this.reaperFn];
+    for (const fn of dataFns) {
       this.signingSecret.grantRead(fn);
       for (const t of Object.values(this.tables)) {
         t.grantReadWriteData(fn);
+      }
+    }
+    if (!this.enrollQueue) {
+      this.signingSecret.grantRead(this.enrollFn);
+      for (const t of Object.values(this.tables)) {
+        t.grantReadWriteData(this.enrollFn);
       }
     }
 

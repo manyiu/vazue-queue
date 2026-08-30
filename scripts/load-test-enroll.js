@@ -42,6 +42,8 @@ const profiles = {
     maxDuration: '10m',
     thresholds: {
       'http_req_failed{endpoint:enroll}': ['rate<0.01'],
+      // Informational only — ensures k6 emits enroll POST percentiles in handleSummary.
+      'http_req_duration{endpoint:enroll}': ['p(95)<10000'],
     },
   },
 };

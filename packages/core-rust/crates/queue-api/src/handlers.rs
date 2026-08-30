@@ -41,8 +41,8 @@ pub async fn enroll(
         }
     }
     match state
-        .store
-        .enroll(&state.tenant_id, body, &state.keys, state.use_rsa)
+        .require_store()
+        .enroll(&state.tenant_id, body, state.require_keys(), state.use_rsa)
         .await
     {
         Ok(resp) => {
@@ -67,12 +67,12 @@ pub async fn status(
     Query(q): Query<StatusQuery>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<Value>)> {
     let resp = state
-        .store
+        .require_store()
         .status(
             &state.tenant_id,
             &event_id,
             &q.request_id,
-            &state.keys,
+            state.require_keys(),
             state.use_rsa,
         )
         .await
@@ -98,12 +98,12 @@ pub async fn admit(
     Json(body): Json<AdmitBody>,
 ) -> Result<Json<StatusResponse>, (StatusCode, Json<Value>)> {
     state
-        .store
+        .require_store()
         .admit(
             &state.tenant_id,
             &event_id,
             &body.request_id,
-            &state.keys,
+            state.require_keys(),
             state.use_rsa,
         )
         .await
