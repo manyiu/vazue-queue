@@ -1,0 +1,12 @@
+{
+  "record": "docs/launch/deploy-smoke-standard-2026-08-30.md",
+  "date": "2026-08-30",
+  "account": "517206156255",
+  "region": "us-east-1",
+  "stack": "VazueQueueDeploySmokeStandard",
+  "preset": "standard",
+  "queueApiUrl": "https://bvysywlyq0.execute-api.us-east-1.amazonaws.com",
+  "waitingRoomUrl": "https://d4gzde7ljt788.cloudfront.net",
+  "eventId": "deploy-smoke",
+  "verdict": "pass"
+}
