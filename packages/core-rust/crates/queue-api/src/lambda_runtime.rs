@@ -29,13 +29,6 @@ pub async fn build_aws_state() -> Result<AppState, String> {
     let ddb = aws_sdk_dynamodb::Client::new(&conf);
     let store = DynamoDbStore::from_env(ddb).map_err(|e| e.to_string())?;
     let secret = load_signing_secret(&conf).await?;
-    let turnstile_secret = load_optional_turnstile_secret(&conf).await?;
-    if bot_protection_needs_turnstile() && turnstile_secret.is_none() {
-        return Err(
-            "TURNSTILE_SECRET or TURNSTILE_SECRET_ARN required when bot protection uses challenges"
-                .into(),
-        );
-    }
     let tenant_id = std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into());
     let profile = platform::DeploymentProfile::from_env();
     let capabilities = deployment_capabilities(profile);
@@ -56,26 +49,37 @@ pub async fn build_aws_state() -> Result<AppState, String> {
         enroll_via_sqs,
         enroll_sqs,
         enroll_queue_url,
-        turnstile_secret,
+        turnstile_secret: None,
     })
 }
 
-/// Buffered EnrollFn: SQS accept only — skip DynamoDB + signing secret at cold start.
-pub async fn build_enroll_state() -> Result<AppState, String> {
-    let enroll_via_sqs = std::env::var("ENROLL_VIA_SQS").ok().as_deref() == Some("1");
-    if !enroll_via_sqs {
-        return build_aws_state().await;
-    }
-    let enroll_queue_url = std::env::var("ENROLL_QUEUE_URL")
-        .map_err(|_| "ENROLL_QUEUE_URL required when ENROLL_VIA_SQS=1".to_string())?;
-    let conf = aws_config::load_defaults(BehaviorVersion::latest()).await;
-    let turnstile_secret = load_optional_turnstile_secret(&conf).await?;
+async fn load_enroll_turnstile_secret(
+    conf: &aws_config::SdkConfig,
+) -> Result<Option<String>, String> {
+    let turnstile_secret = load_optional_turnstile_secret(conf)
+        .await?
+        .filter(|s| !s.is_empty());
     if bot_protection_needs_turnstile() && turnstile_secret.is_none() {
         return Err(
             "TURNSTILE_SECRET or TURNSTILE_SECRET_ARN required when bot protection uses challenges"
                 .into(),
         );
     }
+    Ok(turnstile_secret)
+}
+
+/// Buffered EnrollFn: SQS accept only — skip DynamoDB + signing secret at cold start.
+pub async fn build_enroll_state() -> Result<AppState, String> {
+    let conf = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let turnstile_secret = load_enroll_turnstile_secret(&conf).await?;
+    let enroll_via_sqs = std::env::var("ENROLL_VIA_SQS").ok().as_deref() == Some("1");
+    if !enroll_via_sqs {
+        let mut state = build_aws_state().await?;
+        state.turnstile_secret = turnstile_secret;
+        return Ok(state);
+    }
+    let enroll_queue_url = std::env::var("ENROLL_QUEUE_URL")
+        .map_err(|_| "ENROLL_QUEUE_URL required when ENROLL_VIA_SQS=1".to_string())?;
     let tenant_id = std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into());
     let profile = platform::DeploymentProfile::from_env();
     Ok(AppState {

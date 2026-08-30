@@ -195,6 +195,38 @@ describe('VazueQueue presets', () => {
       expect(actions.some((a) => a.startsWith('secretsmanager:GetSecretValue'))).toBe(true);
       expect(actions.some((a) => a.startsWith('dynamodb:'))).toBe(false);
     });
+
+    it('scopes Turnstile secret env to EnrollFn only', () => {
+      const app = new App();
+      const stack = new Stack(app, 'TurnstileScope');
+      new VazueQueue(stack, 'Queue', {
+        domainName: 'queue.example.com',
+        preset: 'standard',
+        awsRegion: 'us-east-1',
+        security: {
+          botProtection: {
+            mode: 'challenge_always',
+            turnstileSecretArn:
+              'arn:aws:secretsmanager:us-east-1:111111111111:secret:turnstile-AbCdEf',
+          },
+        },
+      });
+      const template = Template.fromStack(stack);
+      template.hasResourceProperties('AWS::Lambda::Function', {
+        Handler: Match.anyValue(),
+        Environment: {
+          Variables: Match.objectLike({
+            TURNSTILE_SECRET_ARN:
+              'arn:aws:secretsmanager:us-east-1:111111111111:secret:turnstile-AbCdEf',
+          }),
+        },
+      });
+      const fns = template.findResources('AWS::Lambda::Function');
+      const status = Object.entries(fns).find(([id]) => id.includes('StatusFn'));
+      expect(status).toBeDefined();
+      const statusVars = status![1].Properties?.Environment?.Variables ?? {};
+      expect(statusVars.TURNSTILE_SECRET_ARN).toBeUndefined();
+    });
   });
 
 describe('config', () => {
