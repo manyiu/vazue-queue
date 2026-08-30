@@ -3,8 +3,12 @@
 pub mod dynamodb_store;
 pub mod handlers;
 pub mod lambda_runtime;
+pub mod secrets;
 pub mod state;
 pub mod store;
+
+#[cfg(test)]
+mod test_env;
 
 pub use dynamodb_store::DynamoDbStore;
 pub use handlers::{admit, capabilities, enroll, health, ready, status};

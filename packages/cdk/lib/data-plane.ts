@@ -82,9 +82,10 @@ export class QueueDataPlane extends Construct {
       TENANT_ID: 'default',
       BOT_PROTECTION_MODE: config.security.botProtection.mode ?? 'off',
     };
-    if (config.security.botProtection.turnstileSecretArn) {
-      baseEnv.TURNSTILE_SECRET_ARN = config.security.botProtection.turnstileSecretArn;
-    }
+
+    const turnstileEnv: Record<string, string> = config.security.botProtection.turnstileSecretArn
+      ? { TURNSTILE_SECRET_ARN: config.security.botProtection.turnstileSecretArn }
+      : {};
 
     const dataEnv: Record<string, string> = {
       ...baseEnv,
@@ -106,10 +107,11 @@ export class QueueDataPlane extends Construct {
     const enrollEnv: Record<string, string> = this.enrollQueue
       ? {
           ...baseEnv,
+          ...turnstileEnv,
           ENROLL_VIA_SQS: '1',
           ENROLL_QUEUE_URL: this.enrollQueue.queueUrl,
         }
-      : dataEnv;
+      : { ...dataEnv, ...turnstileEnv };
 
     const mkFn = (
       id: string,
@@ -133,6 +135,15 @@ export class QueueDataPlane extends Construct {
     this.statusFn = mkFn('StatusFn', 'status');
     this.admitFn = mkFn('AdmitFn', 'admit');
     this.reaperFn = mkFn('ServingReaperFn', 'serving-reaper', 60);
+
+    if (config.security.botProtection.turnstileSecretArn) {
+      const turnstileSecret = secretsmanager.Secret.fromSecretCompleteArn(
+        this,
+        'TurnstileSecret',
+        config.security.botProtection.turnstileSecretArn,
+      );
+      turnstileSecret.grantRead(this.enrollFn);
+    }
 
     const dataFns = [this.statusFn, this.admitFn, this.reaperFn];
     for (const fn of dataFns) {
