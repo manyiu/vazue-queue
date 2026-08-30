@@ -22,6 +22,19 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: npm install -g npm@11.18.0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+      - name: Install zig (cargo-lambda cross)
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+      - name: Install cargo-lambda
+        run: pip install cargo-lambda
+      - name: Build Lambda assets for npm publish
+        run: |
+          chmod +x scripts/build-lambda-assets.sh
+          REQUIRE_ARTIFACTS=1 scripts/build-lambda-assets.sh
       - name: Create Release Pull Request or Publish
         uses: changesets/action@v1
         with:
