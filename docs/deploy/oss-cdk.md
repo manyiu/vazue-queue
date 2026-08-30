@@ -60,6 +60,58 @@ Assumes every visitor enrolls once and polls status for the whole window. Adapti
 
 Pass `return_url` on enroll (or set it on the event). GET status returns it when the visitor is admitted; the waiting room redirects there and appends `vazue_token`. Preserve the original deep link — do not replace it with a generic homepage.
 
+## Bot protection (Turnstile)
+
+**Default:** `security.botProtection.mode` is **`off`**. Enable only when you need Cloudflare Turnstile on enroll.
+
+| Mode | Turnstile | Notes |
+|------|-----------|-------|
+| `off` | No | Default |
+| `rate_limit_only` | No | IP rate limits only |
+| `challenge_suspicious` | Yes | Challenge when suspicious |
+| `challenge_always` | Yes | Challenge every enroll |
+
+Challenge modes require **both**:
+
+1. **`turnstileSiteKey`** — public widget key (safe in config; baked into waiting room HTML).
+2. **`turnstileSecretArn`** — Secrets Manager ARN for the **Cloudflare secret key** (never put the secret value in `vazue-queue.config.json`).
+
+### Setup
+
+1. In [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/), create a widget and copy the **site key** and **secret key**.
+2. Store the secret key in AWS Secrets Manager (plain string secret):
+
+   ```bash
+   aws secretsmanager create-secret \
+     --name vazue-queue/turnstile \
+     --secret-string 'YOUR_CLOUDFLARE_SECRET_KEY' \
+     --region us-east-1
+   ```
+
+3. Add both keys to `vazue-queue.config.json`:
+
+   ```json
+   {
+     "security": {
+       "botProtection": {
+         "mode": "challenge_suspicious",
+         "turnstileSiteKey": "0x4AAAA...",
+         "turnstileSecretArn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:vazue-queue/turnstile-AbCdEf"
+       }
+     }
+   }
+   ```
+
+4. Redeploy. CDK grants **EnrollFn** `secretsmanager:GetSecretValue` on that ARN only and sets `TURNSTILE_SECRET_ARN` at cold start.
+
+The interactive wizard (`npx create-vazue-queue` / `npx vazue-queue config`) prompts for both when you pick a challenge mode. Validate before deploy:
+
+```bash
+npx vazue-queue config --validate
+```
+
+Local dev: set `TURNSTILE_SECRET` in the environment instead of an ARN (`VAZUE_LOCAL=1`).
+
 ## Health
 
 - `GET /health` — liveness (data plane and admin)

@@ -4,6 +4,8 @@ Publish `@yiu/queue-cdk` **1.0.0** when this list is complete. SaaS (`packages/s
 
 **npm scope:** v1 publishes under **`@yiu/*`** (npm user `yiu`). When the `@vazue` npm org exists, publish parallel `@vazue/*` packages and deprecate `@yiu/*` — npm does not rename scopes on transfer.
 
+**Maintenance releases (post-v1):** `@yiu/queue-cdk` **1.0.2** (lean EnrollFn init), **1.0.3** (jsonwebtoken 10 + Turnstile Secrets Manager loading). Redeploy stacks to pick up Lambda binary updates.
+
 ## Quality
 
 - [x] `pnpm verify` green on `main` (keep green)

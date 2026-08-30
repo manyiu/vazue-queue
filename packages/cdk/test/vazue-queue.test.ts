@@ -173,6 +173,7 @@ describe('VazueQueue presets', () => {
         security: {
           botProtection: {
             mode: 'challenge_always',
+            turnstileSiteKey: '0x4AAAA-test-site-key',
             turnstileSecretArn:
               'arn:aws:secretsmanager:us-east-1:111111111111:secret:turnstile-AbCdEf',
           },
@@ -206,6 +207,7 @@ describe('VazueQueue presets', () => {
         security: {
           botProtection: {
             mode: 'challenge_always',
+            turnstileSiteKey: '0x4AAAA-test-site-key',
             turnstileSecretArn:
               'arn:aws:secretsmanager:us-east-1:111111111111:secret:turnstile-AbCdEf',
           },
@@ -232,6 +234,20 @@ describe('VazueQueue presets', () => {
 describe('config', () => {
   it('rejects missing domainName', () => {
     expect(() => validateConfig({ preset: 'standard' })).toThrow(/domainName/);
+  });
+
+  it('rejects challenge mode without turnstileSecretArn', () => {
+    expect(() =>
+      validateConfig({
+        domainName: 'queue.example.com',
+        security: {
+          botProtection: {
+            mode: 'challenge_always',
+            turnstileSiteKey: '0x4AAAA',
+          },
+        },
+      }),
+    ).toThrow(/turnstileSecretArn/);
   });
 
   it('resolves defaults', () => {

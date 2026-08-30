@@ -122,6 +122,23 @@ export function validateConfig(raw: unknown): asserts raw is VazueQueueConfig {
       }
     }
   }
+  const security = cfg.security as Record<string, unknown> | undefined;
+  const bot = security?.botProtection as Record<string, unknown> | undefined;
+  const botMode = typeof bot?.mode === 'string' ? bot.mode : 'off';
+  if (botMode === 'challenge_suspicious' || botMode === 'challenge_always') {
+    const arn = bot?.turnstileSecretArn;
+    if (typeof arn !== 'string' || !arn.trim()) {
+      throw new Error(
+        'Invalid vazue-queue config: security.botProtection.turnstileSecretArn required when mode uses Turnstile challenges',
+      );
+    }
+    const siteKey = bot?.turnstileSiteKey;
+    if (typeof siteKey !== 'string' || !siteKey.trim()) {
+      throw new Error(
+        'Invalid vazue-queue config: security.botProtection.turnstileSiteKey required when mode uses Turnstile challenges',
+      );
+    }
+  }
 }
 
 export function loadAndMergeConfig(...paths: string[]): VazueQueueConfig {

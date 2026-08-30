@@ -17,10 +17,16 @@ export type QueueCliConfig = {
   };
   origin?: { domainName?: string };
   security?: {
-    botProtection?: { mode?: string; turnstileSiteKey?: string };
+    botProtection?: { mode?: string; turnstileSiteKey?: string; turnstileSecretArn?: string };
     jwtHmacSecret?: string;
   };
 };
+
+const CHALLENGE_BOT_MODES = new Set(['challenge_suspicious', 'challenge_always']);
+
+function needsTurnstile(mode: string | undefined): boolean {
+  return CHALLENGE_BOT_MODES.has(mode ?? 'off');
+}
 
 export function validateQueueCliConfig(raw: unknown): asserts raw is QueueCliConfig {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -37,5 +43,23 @@ export function validateQueueCliConfig(raw: unknown): asserts raw is QueueCliCon
     cfg.preset !== 'full'
   ) {
     throw new Error('Invalid config: preset must be minimal|standard|full');
+  }
+  const bot = (cfg.security as Record<string, unknown> | undefined)?.botProtection as
+    | Record<string, unknown>
+    | undefined;
+  const botMode = typeof bot?.mode === 'string' ? bot.mode : 'off';
+  if (needsTurnstile(botMode)) {
+    const arn = bot?.turnstileSecretArn;
+    if (typeof arn !== 'string' || !arn.trim()) {
+      throw new Error(
+        'Invalid config: security.botProtection.turnstileSecretArn required when mode is challenge_suspicious or challenge_always (store the Cloudflare secret in Secrets Manager; see https://github.com/manyiu/vazue-queue/blob/main/docs/deploy/oss-cdk.md#bot-protection-turnstile)',
+      );
+    }
+    const siteKey = bot?.turnstileSiteKey;
+    if (typeof siteKey !== 'string' || !siteKey.trim()) {
+      throw new Error(
+        'Invalid config: security.botProtection.turnstileSiteKey required when mode uses Turnstile challenges',
+      );
+    }
   }
 }
