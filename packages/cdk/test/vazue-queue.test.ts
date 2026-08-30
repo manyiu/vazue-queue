@@ -19,6 +19,32 @@ function synthPreset(preset: 'minimal' | 'standard' | 'full') {
   return Template.fromStack(stack);
 }
 
+function enrollFnRoleLogicalId(template: Template): string {
+  const fns = template.findResources('AWS::Lambda::Function');
+  const enroll = Object.entries(fns).find(
+    ([id]) => id.includes('EnrollFn') && !id.includes('Worker'),
+  );
+  const role = enroll![1].Properties?.Role as { 'Fn::GetAtt': [string, string] };
+  return role['Fn::GetAtt'][0];
+}
+
+function policyActionsForRole(template: Template, roleLogicalId: string): string[] {
+  const actions: string[] = [];
+  const policies = template.findResources('AWS::IAM::Policy');
+  for (const res of Object.values(policies)) {
+    const roles = res.Properties?.Roles as Array<{ Ref: string } | { 'Fn::GetAtt': string[] }>;
+    if (!roles?.some((r) => ('Ref' in r ? r.Ref : r['Fn::GetAtt'][0]) === roleLogicalId)) {
+      continue;
+    }
+    for (const statement of res.Properties?.PolicyDocument?.Statement ?? []) {
+      const action = statement.Action;
+      if (typeof action === 'string') actions.push(action);
+      else if (Array.isArray(action)) actions.push(...action);
+    }
+  }
+  return actions;
+}
+
 describe('VazueQueue presets', () => {
   it('minimal has DynamoDB tables and HTTP API, no CloudFront', () => {
     const template = synthPreset('minimal');
@@ -115,6 +141,26 @@ describe('VazueQueue presets', () => {
         },
       });
       template.resourceCountIs('AWS::SQS::Queue', 1);
+    });
+
+    it('buffered EnrollFn omits DynamoDB env and data-plane IAM', () => {
+      const template = synthPreset('standard');
+      const fns = template.findResources('AWS::Lambda::Function');
+      const enroll = Object.entries(fns).find(
+        ([id]) => id.includes('EnrollFn') && !id.includes('Worker'),
+      );
+      expect(enroll).toBeDefined();
+      const vars = enroll![1].Properties?.Environment?.Variables ?? {};
+      expect(vars.ENROLL_VIA_SQS).toBe('1');
+      expect(vars.ENROLL_QUEUE_URL).toBeDefined();
+      expect(vars.VISITORS_TABLE).toBeUndefined();
+      expect(vars.SIGNING_SECRET_ARN).toBeUndefined();
+
+      const roleId = enrollFnRoleLogicalId(template);
+      const actions = policyActionsForRole(template, roleId);
+      expect(actions.some((a) => a.startsWith('sqs:'))).toBe(true);
+      expect(actions.some((a) => a.startsWith('dynamodb:'))).toBe(false);
+      expect(actions.some((a) => a.startsWith('secretsmanager:'))).toBe(false);
     });
   });
 
