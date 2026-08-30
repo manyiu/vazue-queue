@@ -52,7 +52,7 @@ export function validateQueueCliConfig(raw: unknown): asserts raw is QueueCliCon
     const arn = bot?.turnstileSecretArn;
     if (typeof arn !== 'string' || !arn.trim()) {
       throw new Error(
-        'Invalid config: security.botProtection.turnstileSecretArn required when mode is challenge_suspicious or challenge_always (store the Cloudflare secret in Secrets Manager; see docs/deploy/oss-cdk.md)',
+        'Invalid config: security.botProtection.turnstileSecretArn required when mode is challenge_suspicious or challenge_always (store the Cloudflare secret in Secrets Manager; see https://github.com/manyiu/vazue-queue/blob/main/docs/deploy/oss-cdk.md#bot-protection-turnstile)',
       );
     }
     const siteKey = bot?.turnstileSiteKey;
