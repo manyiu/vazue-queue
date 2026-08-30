@@ -1,0 +1,10 @@
+{
+  "profile": "rc",
+  "targetVus": 1000,
+  "workerId": null,
+  "pollBase": "https://d3m551e6w0nkl5.cloudfront.net",
+  "http_req_failed_rate": 0,
+  "http_req_duration_p90": 2.5199966,
+  "http_req_duration_p95": 2.9992697499999994,
+  "iterations": 157721
+}

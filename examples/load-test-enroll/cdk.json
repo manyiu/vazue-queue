@@ -1,0 +1,23 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/app.ts",
+  "context": {
+    "vazue-queue": {
+      "domainName": "loadtest-enroll.example.com",
+      "preset": "minimal",
+      "awsRegion": "us-east-1",
+      "features": {
+        "enrollBuffer": false
+      },
+      "queue": {
+        "lambdaMemoryMb": 512
+      },
+      "security": {
+        "removalPolicy": "destroy",
+        "botProtection": { "mode": "off" }
+      },
+      "tags": {
+        "purpose": "load-test-enroll"
+      }
+    }
+  }
+}

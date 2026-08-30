@@ -22,12 +22,22 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: npm install -g npm@11.18.0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+      - name: Install zig (cargo-lambda cross)
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+      - name: Install cargo-lambda
+        run: pip install cargo-lambda
       - name: Create Release Pull Request or Publish
         uses: changesets/action@v1
         with:
           # Changesets ignore lists @vazue/saas-*; only OSS packages publish.
           # Provenance + OIDC: id-token write + npm trusted publisher on manyiu/vazue-queue/release.yml.
-          publish: pnpm exec changeset publish
+          # Build Lambda zips only on the publish path (not when opening Version Packages PR).
+          publish: bash scripts/publish-oss.sh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Assert SaaS packages stayed private

@@ -1,5 +1,11 @@
 # @yiu/queue-cdk
 
+## 1.0.2
+
+### Patch Changes
+
+- b963bef: Lean buffered EnrollFn cold start: skip DynamoDB and signing-secret init on the SQS accept path, with matching CDK env/IAM slimming and updated enroll Lambda binaries.
+
 ## 1.0.1
 
 ### Patch Changes

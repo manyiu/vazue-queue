@@ -1,0 +1,13 @@
+{
+  "profile": "rc",
+  "targetVus": 1000,
+  "workerId": null,
+  "scenario": "enroll_burst",
+  "poll_after_enroll": false,
+  "http_req_failed_rate": 0.001,
+  "http_req_duration_p90": 1272.225888,
+  "http_req_duration_p95": 1406.12863845,
+  "status_poll_failed_rate": null,
+  "enrollments": 1000,
+  "iterations": 1000
+}

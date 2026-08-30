@@ -2,6 +2,8 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const BASE = __ENV.QUEUE_API_URL || 'http://localhost:3000';
+/** When set, status polls use this base (e.g. CloudFront) while enroll stays on QUEUE_API_URL. */
+const POLL_BASE = __ENV.POLL_BASE_URL || BASE;
 const EVENT = __ENV.EVENT_ID || 'demo';
 const PROFILE = (__ENV.PROFILE || 'smoke').toLowerCase();
 const VUS = Number(__ENV.VUS || (PROFILE === 'rc' ? 1000 : 50));
@@ -71,7 +73,7 @@ export function setup() {
 }
 
 export default function (data) {
-  const res = http.get(`${BASE}/v1/events/${EVENT}/status?request_id=${data.requestId}`);
+  const res = http.get(`${POLL_BASE}/v1/events/${EVENT}/status?request_id=${data.requestId}`);
   check(res, { 'status 200': (r) => r.status === 200 });
   const body = res.json();
   sleep(Math.min(body.poll_after_seconds || 2, 5));
@@ -85,7 +87,10 @@ export function handleSummary(data) {
     profile: PROFILE,
     targetVus: VUS,
     workerId,
+    pollBase: POLL_BASE !== BASE ? POLL_BASE : null,
     http_req_failed_rate: failed ? failed.values.rate : null,
+    http_req_duration_p50: duration ? duration.values['p(50)'] : null,
+    http_req_duration_p90: duration ? duration.values['p(90)'] : null,
     http_req_duration_p95: duration ? duration.values['p(95)'] : null,
     http_req_duration_p99: duration ? duration.values['p(99)'] : null,
     iterations: data.metrics.iterations ? data.metrics.iterations.values.count : null,
@@ -93,7 +98,7 @@ export function handleSummary(data) {
   const lines = [
     `profile=${PROFILE} targetVUs=${VUS}`,
     `fail_rate=${report.http_req_failed_rate}`,
-    `p95=${report.http_req_duration_p95} p99=${report.http_req_duration_p99}`,
+    `p50=${report.http_req_duration_p50} p90=${report.http_req_duration_p90} p95=${report.http_req_duration_p95} p99=${report.http_req_duration_p99}`,
     `iterations=${report.iterations}`,
   ];
   return {

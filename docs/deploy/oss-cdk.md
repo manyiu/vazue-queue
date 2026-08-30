@@ -71,6 +71,9 @@ Pass `return_url` on enroll (or set it on the event). GET status returns it when
 # Local smoke (needs k6 + local-server on :3000)
 PROFILE=smoke bash scripts/load-test-100k.sh
 
+# Enroll burst smoke (one unique enroll per VU)
+PROFILE=smoke bash scripts/load-test-enroll.sh
+
 # RC gate against a deployed data-plane URL
 QUEUE_API_URL=https://<your-queue-api> \
 EVENT_ID=<active-event-id> \
@@ -83,16 +86,31 @@ bash scripts/load-test-100k.sh
 | Field | RC gate |
 |-------|---------|
 | `http_req_failed_rate` | &lt; 0.01 |
+| `http_req_duration_p50` / `p90` | informational |
 | `http_req_duration_p95` | &lt; 250ms |
 | `http_req_duration_p99` | &lt; 500ms |
+
+Set `POLL_BASE_URL` to poll status via CloudFront while enrolling on `QUEUE_API_URL` (used by the `standard` preset runner).
 
 Attach that file to the OSS v1 release notes. The GitHub `Load test` workflow runs a small smoke/RC VU count against `local-server` only.
 
 **OSS v1 release gate:** in-region **1000 VUs** and **10,000 VUs** (`PROFILE=rc`). Run the generator **in the same region** as the data plane when measuring p95 (cross-region RTT can dominate).
 
+`scripts/load-test-enroll.js` (enroll burst) writes the same `load-test-report.json` shape. **Enroll burst RC gate:** fail rate only (`http_req_failed_rate` &lt; 0.01). POST p95 is recorded for capacity docs (reference stack ~700–850ms at 1K VUs on buffered `standard`); it is **not** an OSS release gate.
+
+| Field | RC gate |
+|-------|---------|
+| `http_req_failed_rate` | &lt; 0.01 |
+| `http_req_duration_p95` | informational (see [`capacity.md`](./capacity.md)) |
+
+Set `POLL_AFTER_ENROLL=1` to add one GET status after each enroll.
+
 In-region helpers (ephemeral stack + CodeBuild; destroys afterward):
 
 - **1K RC gate:** `bash scripts/run-load-test-rc-inregion.sh`
+- **1K RC gate (`standard` preset, CloudFront status):** `bash scripts/run-load-test-standard-inregion.sh`
+- **1K enroll burst:** `bash scripts/run-load-test-enroll-inregion.sh`
+- **1K buffered enroll burst (`standard`):** `bash scripts/run-load-test-enroll-standard-inregion.sh`
 - **10K gate:** `VUS=10000 WORKERS=1 bash scripts/run-load-test-100k-inregion.sh`
 - **100K exploratory (optional, waived for v1):** default `VUS=100000 WORKERS=10` — see [`load-test-100k-2026-08-28`](../launch/load-test-100k-2026-08-28.md)
 
@@ -101,6 +119,9 @@ Recorded evidence:
 - Pass (CodeBuild us-east-1, 1000 VUs): [`docs/launch/load-test-rc-2026-08-22-inregion.md`](../launch/load-test-rc-2026-08-22-inregion.md) / [`.json`](../launch/load-test-rc-2026-08-22-inregion.json)
 - HKT-client miss (geography): [`docs/launch/load-test-rc-2026-08-21.md`](../launch/load-test-rc-2026-08-21.md)
 - Pass (10,000 VUs): [`docs/launch/load-test-10k-2026-08-28.md`](../launch/load-test-10k-2026-08-28.md)
+- Pass (`standard` preset, 1,000 VUs, CloudFront status): [`docs/launch/load-test-standard-2026-08-29.md`](../launch/load-test-standard-2026-08-29.md)
+- Enroll burst (1,000 unique enrolls, `minimal` sync): [`docs/launch/load-test-enroll-2026-08-29.md`](../launch/load-test-enroll-2026-08-29.md) — **0.1% fail**, enroll p95 ~1.4s
+- Buffered enroll burst (1,000 unique enrolls, `standard`): [`docs/launch/load-test-enroll-standard-2026-08-29.md`](../launch/load-test-enroll-standard-2026-08-29.md) — **0% fail**, enroll p95 ~700–850ms (reference stack)
 
 ## Deploy smoke (`standard` preset)
 
