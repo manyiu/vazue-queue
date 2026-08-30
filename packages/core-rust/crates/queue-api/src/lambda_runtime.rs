@@ -11,6 +11,9 @@ use serde_json::json;
 use tracing_subscriber::EnvFilter;
 
 use crate::dynamodb_store::DynamoDbStore;
+use crate::secrets::{
+    bot_protection_needs_turnstile, load_optional_turnstile_secret, load_signing_secret,
+};
 use crate::state::AppState;
 use crate::store::EnrollRequest;
 
@@ -26,6 +29,13 @@ pub async fn build_aws_state() -> Result<AppState, String> {
     let ddb = aws_sdk_dynamodb::Client::new(&conf);
     let store = DynamoDbStore::from_env(ddb).map_err(|e| e.to_string())?;
     let secret = load_signing_secret(&conf).await?;
+    let turnstile_secret = load_optional_turnstile_secret(&conf).await?;
+    if bot_protection_needs_turnstile() && turnstile_secret.is_none() {
+        return Err(
+            "TURNSTILE_SECRET or TURNSTILE_SECRET_ARN required when bot protection uses challenges"
+                .into(),
+        );
+    }
     let tenant_id = std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into());
     let profile = platform::DeploymentProfile::from_env();
     let capabilities = deployment_capabilities(profile);
@@ -46,6 +56,7 @@ pub async fn build_aws_state() -> Result<AppState, String> {
         enroll_via_sqs,
         enroll_sqs,
         enroll_queue_url,
+        turnstile_secret,
     })
 }
 
@@ -58,6 +69,13 @@ pub async fn build_enroll_state() -> Result<AppState, String> {
     let enroll_queue_url = std::env::var("ENROLL_QUEUE_URL")
         .map_err(|_| "ENROLL_QUEUE_URL required when ENROLL_VIA_SQS=1".to_string())?;
     let conf = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let turnstile_secret = load_optional_turnstile_secret(&conf).await?;
+    if bot_protection_needs_turnstile() && turnstile_secret.is_none() {
+        return Err(
+            "TURNSTILE_SECRET or TURNSTILE_SECRET_ARN required when bot protection uses challenges"
+                .into(),
+        );
+    }
     let tenant_id = std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into());
     let profile = platform::DeploymentProfile::from_env();
     Ok(AppState {
@@ -70,6 +88,7 @@ pub async fn build_enroll_state() -> Result<AppState, String> {
         enroll_via_sqs: true,
         enroll_sqs: Some(aws_sdk_sqs::Client::new(&conf)),
         enroll_queue_url: Some(enroll_queue_url),
+        turnstile_secret,
     })
 }
 
@@ -78,25 +97,6 @@ fn deployment_capabilities(profile: platform::DeploymentProfile) -> platform::Ca
         platform::DeploymentProfile::Saas => platform::Capabilities::saas_free(),
         platform::DeploymentProfile::Oss => platform::Capabilities::oss_full(),
     }
-}
-
-async fn load_signing_secret(conf: &aws_config::SdkConfig) -> Result<Vec<u8>, String> {
-    if let Ok(raw) = std::env::var("SIGNING_SECRET") {
-        return Ok(raw.into_bytes());
-    }
-    let arn = std::env::var("SIGNING_SECRET_ARN")
-        .map_err(|_| "SIGNING_SECRET or SIGNING_SECRET_ARN required".to_string())?;
-    let sm = aws_sdk_secretsmanager::Client::new(conf);
-    let out = sm
-        .get_secret_value()
-        .secret_id(arn)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    out.secret_string()
-        .map(|s| s.as_bytes().to_vec())
-        .or_else(|| out.secret_binary().map(|b| b.clone().into_inner()))
-        .ok_or_else(|| "empty signing secret".into())
 }
 
 fn json_response(status: u16, body: impl serde::Serialize) -> Result<Response<Body>, Error> {
@@ -144,7 +144,7 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
         });
     body.event_id = event_id.clone();
 
-    if let Err(e) = maybe_verify_turnstile(&body).await {
+    if let Err(e) = state.verify_enroll_turnstile(&body).await {
         return json_response(409, json!({ "error": e }));
     }
 
@@ -198,21 +198,6 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
         Ok(resp) => json_response(201, resp),
         Err(e) => json_response(map_status(&e), json!({ "error": e.to_string() })),
     }
-}
-
-async fn maybe_verify_turnstile(body: &EnrollRequest) -> Result<(), String> {
-    let mode = std::env::var("BOT_PROTECTION_MODE").unwrap_or_else(|_| "off".into());
-    if mode != "challenge_always" && mode != "challenge_suspicious" {
-        return Ok(());
-    }
-    let token = body.turnstile_token.as_deref().unwrap_or("");
-    let secret = std::env::var("TURNSTILE_SECRET").unwrap_or_else(|_| "bypass".into());
-    let local = std::env::var("VAZUE_LOCAL").ok().as_deref() == Some("1") || secret == "bypass";
-    let ok = platform::verify_turnstile(&secret, token, None, local).await?;
-    if !ok {
-        return Err("captcha failed".into());
-    }
-    Ok(())
 }
 
 pub async fn run_status() -> Result<(), Error> {

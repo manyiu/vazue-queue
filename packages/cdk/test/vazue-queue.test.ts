@@ -162,6 +162,39 @@ describe('VazueQueue presets', () => {
       expect(actions.some((a) => a.startsWith('dynamodb:'))).toBe(false);
       expect(actions.some((a) => a.startsWith('secretsmanager:'))).toBe(false);
     });
+
+    it('buffered EnrollFn loads Turnstile secret when bot protection is enabled', () => {
+      const app = new App();
+      const stack = new Stack(app, 'TurnstileBuffered');
+      new VazueQueue(stack, 'Queue', {
+        domainName: 'queue.example.com',
+        preset: 'standard',
+        awsRegion: 'us-east-1',
+        security: {
+          botProtection: {
+            mode: 'challenge_always',
+            turnstileSecretArn:
+              'arn:aws:secretsmanager:us-east-1:111111111111:secret:turnstile-AbCdEf',
+          },
+        },
+      });
+      const template = Template.fromStack(stack);
+      const fns = template.findResources('AWS::Lambda::Function');
+      const enroll = Object.entries(fns).find(
+        ([id]) => id.includes('EnrollFn') && !id.includes('Worker'),
+      );
+      expect(enroll).toBeDefined();
+      const vars = enroll![1].Properties?.Environment?.Variables ?? {};
+      expect(vars.TURNSTILE_SECRET_ARN).toBe(
+        'arn:aws:secretsmanager:us-east-1:111111111111:secret:turnstile-AbCdEf',
+      );
+      expect(vars.BOT_PROTECTION_MODE).toBe('challenge_always');
+
+      const roleId = enrollFnRoleLogicalId(template);
+      const actions = policyActionsForRole(template, roleId);
+      expect(actions.some((a) => a.startsWith('secretsmanager:GetSecretValue'))).toBe(true);
+      expect(actions.some((a) => a.startsWith('dynamodb:'))).toBe(false);
+    });
   });
 
 describe('config', () => {

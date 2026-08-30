@@ -134,6 +134,15 @@ export class QueueDataPlane extends Construct {
     this.admitFn = mkFn('AdmitFn', 'admit');
     this.reaperFn = mkFn('ServingReaperFn', 'serving-reaper', 60);
 
+    if (config.security.botProtection.turnstileSecretArn) {
+      const turnstileSecret = secretsmanager.Secret.fromSecretCompleteArn(
+        this,
+        'TurnstileSecret',
+        config.security.botProtection.turnstileSecretArn,
+      );
+      turnstileSecret.grantRead(this.enrollFn);
+    }
+
     const dataFns = [this.statusFn, this.admitFn, this.reaperFn];
     for (const fn of dataFns) {
       this.signingSecret.grantRead(fn);

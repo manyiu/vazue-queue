@@ -3,6 +3,7 @@
 pub mod dynamodb_store;
 pub mod handlers;
 pub mod lambda_runtime;
+pub mod secrets;
 pub mod state;
 pub mod store;
 
