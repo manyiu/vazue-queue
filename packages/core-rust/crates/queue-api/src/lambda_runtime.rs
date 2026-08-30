@@ -419,6 +419,9 @@ mod tests {
         env.set("AWS_REGION", "us-east-1");
         env.set("AWS_ACCESS_KEY_ID", "test");
         env.set("AWS_SECRET_ACCESS_KEY", "test");
+        env.set("BOT_PROTECTION_MODE", "off");
+        env.remove("TURNSTILE_SECRET");
+        env.remove("TURNSTILE_SECRET_ARN");
         env.set("ENROLL_VIA_SQS", "1");
         env.set(
             "ENROLL_QUEUE_URL",
