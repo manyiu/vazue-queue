@@ -1,5 +1,11 @@
 # create-vazue-queue
 
+## 1.0.2
+
+### Patch Changes
+
+- 027e3dc: Turnstile operator UX: validate challenge configs at CDK deploy time, prompt for `turnstileSecretArn` in the wizard, and ship `rustls-webpki` 0.103.15 in queue Lambda binaries (redeploy stacks to pick up the TLS patch).
+
 ## 1.0.1
 
 ### Patch Changes
