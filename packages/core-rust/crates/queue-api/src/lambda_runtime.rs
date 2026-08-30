@@ -400,11 +400,20 @@ mod tests {
     }
 
     impl EnvGuard {
-        fn set(key: &'static str, value: &str) -> Self {
+        fn new() -> Self {
+            Self { set: Vec::new() }
+        }
+
+        fn set(&mut self, key: &'static str, value: &str) {
+            let prior = std::env::var(key).ok();
             std::env::set_var(key, value);
-            Self {
-                set: vec![(key, None)],
-            }
+            self.set.push((key, prior));
+        }
+
+        fn remove(&mut self, key: &'static str) {
+            let prior = std::env::var(key).ok();
+            std::env::remove_var(key);
+            self.set.push((key, prior));
         }
     }
 
@@ -421,8 +430,12 @@ mod tests {
 
     #[tokio::test]
     async fn build_enroll_state_buffered_paths() {
-        let _via = EnvGuard::set("ENROLL_VIA_SQS", "1");
-        let _url = EnvGuard::set(
+        let mut env = EnvGuard::new();
+        env.set("AWS_REGION", "us-east-1");
+        env.set("AWS_ACCESS_KEY_ID", "test");
+        env.set("AWS_SECRET_ACCESS_KEY", "test");
+        env.set("ENROLL_VIA_SQS", "1");
+        env.set(
             "ENROLL_QUEUE_URL",
             "https://sqs.us-east-1.amazonaws.com/123456789012/enroll-buffer",
         );
@@ -436,7 +449,7 @@ mod tests {
             Some("https://sqs.us-east-1.amazonaws.com/123456789012/enroll-buffer")
         );
 
-        std::env::remove_var("ENROLL_QUEUE_URL");
+        env.remove("ENROLL_QUEUE_URL");
         let err = match build_enroll_state().await {
             Err(e) => e,
             Ok(_) => panic!("expected missing ENROLL_QUEUE_URL to fail"),
