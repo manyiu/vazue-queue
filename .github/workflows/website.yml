@@ -33,5 +33,4 @@ jobs:
           role-to-assume: ${{ secrets.AWS_WEBSITE_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
       - run: pnpm install --frozen-lockfile
-      - run: pnpm website:build
       - run: pnpm --filter @vazue/landing-cdk deploy

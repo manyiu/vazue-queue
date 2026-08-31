@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vitepress dev --port 5190 --host 127.0.0.1",
     "build": "vitepress build",
-    "preview": "vitepress preview --port 5200 --host 0.0.0.0"
+    "preview": "vitepress preview --port 5200 --host 127.0.0.1"
   },
   "devDependencies": {
     "mermaid": "^11.12.0",

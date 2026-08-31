@@ -20,4 +20,4 @@ pnpm website:build
 echo ""
 echo "==> Preview: http://127.0.0.1:$PORT/"
 echo "    (use 127.0.0.1 — not localhost — if you previously had a dev server on another port)"
-exec pnpm --filter @vazue/website exec vitepress preview --port "$PORT" --host 0.0.0.0
+exec pnpm --filter @vazue/website preview
