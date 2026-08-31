@@ -90,7 +90,7 @@ Flash on-sale traffic is **enroll-heavy**. On default AWS quotas:
 | Workload | Baseline | Why |
 |----------|----------|-----|
 | **Simultaneous unique enrolls** | ~1,000 (reference load tests) | Sync `minimal`: handler holds concurrency for full write path. Buffered `standard`: **202** quickly, workers add invocations. Both tested at ~1K on default quotas. Approaches Lambda's **1,000 concurrent-execution quota per Region** (account-wide). [Request increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html). |
-| **Concurrent status pollers** | ~10,000 | Pollers sleep between requests — typically ~200 concurrent Lambdas at steady state, not 10K |
+| **Concurrent status pollers** | ~10,000 | Pollers sleep between requests — e.g. ~200 concurrent Lambdas at 10K pollers with 2s poll + ~40ms handler ([formula](/docs/guides/capacity#why-many-pollers-many-concurrent-lambdas)), not 10K |
 
 [Capacity planning →](/docs/guides/capacity)
 

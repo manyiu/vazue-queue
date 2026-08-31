@@ -102,14 +102,14 @@ Use the same secret as `security.jwtHmacSecret` in your CDK config. Full referen
 
 ## Packages
 
-| Package | Version | Description |
-|---------|---------|-------------|
-| `create-vazue-queue` | 1.0.2 | Scaffold + config wizard + cost CLI |
-| `@yiu/queue-cdk` | 1.0.4 | CDK constructs to deploy the stack |
-| `@yiu/queue-sdk` | 1.0.1 | TypeScript client (Node 20+) |
-| `github.com/vazue/queue-go` | — | Go client — `go get github.com/vazue/queue-go` |
-| `io.vazue:queue-sdk` | — | Java 11+ client (Maven) |
-| `@vazue/queue-edge-cloudfront` | — | Lambda@Edge connector (private; vendored via CDK) |
+| Package | Description |
+|---------|-------------|
+| [`create-vazue-queue`](https://www.npmjs.com/package/create-vazue-queue) | Scaffold + config wizard + cost CLI |
+| [`@yiu/queue-cdk`](https://www.npmjs.com/package/@yiu/queue-cdk) | CDK constructs to deploy the stack |
+| [`@yiu/queue-sdk`](https://www.npmjs.com/package/@yiu/queue-sdk) | TypeScript client (Node 20+) |
+| [`github.com/vazue/queue-go`](https://github.com/manyiu/vazue-queue/tree/main/packages/sdk-go) | Go client — `go get github.com/vazue/queue-go` |
+| `io.vazue:queue-sdk` | Java 11+ client (Maven) |
+| `@vazue/queue-edge-cloudfront` | Lambda@Edge connector (private; vendored via CDK) |
 
 Product website source: `apps/website` (deployed to `queue.vazue.com`).
 
