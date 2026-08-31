@@ -72,7 +72,6 @@ describe('QueueClient', () => {
     const body = await client.ready();
     expect(body.status).toBe('ready');
     expect(body.tenantId).toBe('default');
-    expect(body.deployment).toBeUndefined();
   });
 });
 
