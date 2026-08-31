@@ -34,6 +34,9 @@ pnpm verify        # alias for agent stop condition
 docker compose -f docker-compose.local.yml up -d
 cargo run -p queue-api --bin local-server
 # queue :3000 + admin :3001 (shared in-memory events; ADMIN_DEV_AUTH=1)
+pnpm website:dev               # product site + docs (http://localhost:5190)
+pnpm website:build             # build for landing-cdk deploy
+pnpm website:preview           # preview production build (http://127.0.0.1:5200)
 bash scripts/sdk-go-test.sh    # Docker Go tests
 bash scripts/sdk-java-test.sh  # Docker Java tests
 npx vazue-queue cost --visitors 100000 --minutes 60

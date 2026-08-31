@@ -14,4 +14,5 @@ Do not assign these as tenant slugs: `api`, `www`, `admin`, `app`, `docs`, `stat
 See `staging.json` and `dev.json`.
 
 ## OSS phase (early)
-Prioritize `queue.vazue.com` (landing) and `docs.queue.vazue.com` before full SaaS trees.
+Prioritize `queue.vazue.com` (unified website: marketing + docs at `/docs`) before full SaaS trees.
+`docs.queue.vazue.com` should redirect to `queue.vazue.com/docs`.

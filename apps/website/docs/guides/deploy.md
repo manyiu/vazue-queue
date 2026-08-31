@@ -1,0 +1,243 @@
+# Deploy with CDK (open source)
+
+## Prerequisites
+
+| Required | Optional |
+|----------|----------|
+| AWS account + CDK bootstrap (`us-east-1`) | Cloudflare account — **only** for Turnstile bot challenges |
+| Node.js 24+, AWS CLI | External WAF rules beyond the `full` preset defaults |
+| DNS for `queue.example.com` (or chosen domain) | |
+
+Bot protection defaults to **`off`** — no Cloudflare signup needed for a standard deploy. The CDN is **Amazon CloudFront**, not Cloudflare.
+
+```bash
+npx create-vazue-queue my-queue   # interactive wizard
+cd my-queue
+pnpm install
+npx cdk bootstrap
+npm run deploy
+```
+
+Non-interactive:
+
+```bash
+npx create-vazue-queue my-queue --yes --domain queue.example.com --preset standard
+```
+
+Reconfigure:
+
+```bash
+npx vazue-queue config
+npx vazue-queue config --validate
+```
+
+Default AWS region for examples: **us-east-1**.
+
+## Capacity
+
+Reference-stack load tests on **default AWS account quotas** validated **~1K** and **~10K concurrent status pollers** in-region (fail &lt; 1%, p95 &lt; 250ms). These are **AWS baseline numbers**, not a product visitor limit — see [Capacity planning](/docs/guides/capacity) for scaling with quota increases and CloudFront caching.
+
+## Pre-built assets (from this monorepo)
+
+Before publishing `@yiu/queue-cdk` or deploying the monorepo example:
+
+```bash
+# Rust Lambdas → packages/cdk/assets/lambda/*.zip
+scripts/build-lambda-assets.sh
+# Optional CI gate:
+REQUIRE_ARTIFACTS=1 scripts/build-lambda-assets.sh
+
+# Waiting room UI → apps/waiting-room/dist
+scripts/build-waiting-room.sh
+
+# Admin portal static export → apps/admin-portal/out
+scripts/build-admin-portal.sh
+```
+
+Without Lambda zips, CDK still synthesizes using Node 501 placeholders so tests pass; real deploys need the zips. On macOS, install **zig** (`brew install zig`) before `scripts/build-lambda-assets.sh`.
+
+## Cost estimate
+
+Rough us-east-1 list-price model for one event (not a quote):
+
+```bash
+npx vazue-queue cost --visitors 100000 --minutes 60 --poll 5
+```
+
+See **[AWS cost estimate](/docs/guides/cost)** for scenario tables, service breakdown, idle billing, and what the CLI excludes (WAF, Cognito, data transfer).
+
+## Return URL
+
+Pass `return_url` on enroll (or set it on the event). GET status returns it when the visitor is admitted; the waiting room redirects there and appends `vazue_token`. Preserve the original deep link — do not replace it with a generic homepage.
+
+## Bot protection (Turnstile)
+
+**Default:** `security.botProtection.mode` is **`off`**. Enable only when Cloudflare Turnstile is required on enroll. A Cloudflare account is **not** part of the default prerequisites.
+
+| Mode | Turnstile | Notes |
+|------|-----------|-------|
+| `off` | No | Default |
+| `rate_limit_only` | No | IP rate limits only |
+| `challenge_suspicious` | Yes | Challenge when suspicious |
+| `challenge_always` | Yes | Challenge every enroll |
+
+Challenge modes require **both**:
+
+1. **`turnstileSiteKey`** — public widget key (safe in config; baked into waiting room HTML).
+2. **`turnstileSecretArn`** — Secrets Manager ARN for the **Cloudflare secret key** (never put the secret value in `vazue-queue.config.json`).
+
+### Setup
+
+1. In [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/), create a widget and copy the **site key** and **secret key**.
+2. Store the secret key in AWS Secrets Manager (plain string secret):
+
+   ```bash
+   aws secretsmanager create-secret \
+     --name vazue-queue/turnstile \
+     --secret-string 'YOUR_CLOUDFLARE_SECRET_KEY' \
+     --region us-east-1
+   ```
+
+3. Add both keys to `vazue-queue.config.json`:
+
+   ```json
+   {
+     "security": {
+       "botProtection": {
+         "mode": "challenge_suspicious",
+         "turnstileSiteKey": "0x4AAAA...",
+         "turnstileSecretArn": "arn:aws:secretsmanager:us-east-1:123456789012:secret:vazue-queue/turnstile-AbCdEf"
+       }
+     }
+   }
+   ```
+
+4. Redeploy. CDK grants **EnrollFn** `secretsmanager:GetSecretValue` on that ARN only and sets `TURNSTILE_SECRET_ARN` at cold start.
+
+The interactive wizard (`npx create-vazue-queue` / `npx vazue-queue config`) prompts for both when a challenge mode is selected. Validate before deploy:
+
+```bash
+npx vazue-queue config --validate
+```
+
+Local dev: set `TURNSTILE_SECRET` in the environment instead of an ARN (`VAZUE_LOCAL=1`).
+
+## Health
+
+- `GET /health` — liveness (data plane and admin)
+- `GET /ready` — readiness (`deployment`, `tenantId`); no auth
+
+## Load test
+
+```bash
+# Local smoke (needs k6 + local-server on :3000)
+PROFILE=smoke bash scripts/load-test-100k.sh
+
+# Enroll burst smoke (one unique enroll per VU)
+PROFILE=smoke bash scripts/load-test-enroll.sh
+
+# RC gate against a deployed data-plane URL
+QUEUE_API_URL=https://<your-queue-api> \
+EVENT_ID=<active-event-id> \
+PROFILE=rc \
+bash scripts/load-test-100k.sh
+```
+
+`scripts/load-test-status.js` writes `load-test-report.json` with at least:
+
+| Field | RC gate |
+|-------|---------|
+| `http_req_failed_rate` | &lt; 0.01 |
+| `http_req_duration_p50` / `p90` | informational |
+| `http_req_duration_p95` | &lt; 250ms |
+| `http_req_duration_p99` | &lt; 500ms |
+
+Set `POLL_BASE_URL` to poll status via CloudFront while enrolling on `QUEUE_API_URL` (used by the `standard` preset runner).
+
+Attach that file to the open source v1 release notes. The GitHub `Load test` workflow runs a small smoke/RC VU count against `local-server` only.
+
+**Open source v1 release gate:** in-region **1000 VUs** and **10,000 VUs** (`PROFILE=rc`). Run the generator **in the same region** as the data plane when measuring p95 (cross-region RTT can dominate).
+
+`scripts/load-test-enroll.js` (enroll burst) writes the same `load-test-report.json` shape. **Enroll burst RC gate:** fail rate only (`http_req_failed_rate` &lt; 0.01). POST p95 is recorded for capacity docs (reference stack ~700–850ms at 1K VUs on buffered `standard`); it is **not** an open source release gate.
+
+| Field | RC gate |
+|-------|---------|
+| `http_req_failed_rate` | &lt; 0.01 |
+| `http_req_duration_p95` | informational (see [Capacity planning](/docs/guides/capacity)) |
+
+Set `POLL_AFTER_ENROLL=1` to add one GET status after each enroll.
+
+In-region helpers (ephemeral stack + CodeBuild; destroys afterward):
+
+- **1K RC gate:** `bash scripts/run-load-test-rc-inregion.sh`
+- **1K RC gate (`standard` preset, CloudFront status):** `bash scripts/run-load-test-standard-inregion.sh`
+- **1K enroll burst:** `bash scripts/run-load-test-enroll-inregion.sh`
+- **1K buffered enroll burst (`standard`):** `bash scripts/run-load-test-enroll-standard-inregion.sh`
+- **10K gate:** `VUS=10000 WORKERS=1 bash scripts/run-load-test-100k-inregion.sh`
+- **100K exploratory (optional, waived for v1):** default `VUS=100000 WORKERS=10` — see [load-test-100k-2026-08-28](https://github.com/manyiu/vazue-queue/blob/main/docs/launch/load-test-100k-2026-08-28.md)
+
+Recorded evidence:
+
+- Pass (CodeBuild us-east-1, 1000 VUs): [load-test-rc-2026-08-22-inregion](https://github.com/manyiu/vazue-queue/blob/main/docs/launch/load-test-rc-2026-08-22-inregion.md)
+- HKT-client miss (geography): [load-test-rc-2026-08-21](https://github.com/manyiu/vazue-queue/blob/main/docs/launch/load-test-rc-2026-08-21.md)
+- Pass (10,000 VUs): [load-test-10k-2026-08-28](https://github.com/manyiu/vazue-queue/blob/main/docs/launch/load-test-10k-2026-08-28.md)
+- Pass (`standard` preset, 1,000 VUs, CloudFront status): [load-test-standard-2026-08-29](https://github.com/manyiu/vazue-queue/blob/main/docs/launch/load-test-standard-2026-08-29.md)
+- Enroll burst (1,000 unique enrolls, `minimal` sync): [load-test-enroll-2026-08-29](https://github.com/manyiu/vazue-queue/blob/main/docs/launch/load-test-enroll-2026-08-29.md) — **0.1% fail**, enroll p95 ~1.4s
+- Buffered enroll burst (1,000 unique enrolls, `standard`): [load-test-enroll-standard-2026-08-29](https://github.com/manyiu/vazue-queue/blob/main/docs/launch/load-test-enroll-standard-2026-08-29.md) — **0% fail**, enroll p95 ~700–850ms (reference stack)
+
+## Deploy smoke (`standard` preset)
+
+Ephemeral us-east-1 deploy of the recommended **`standard`** preset (CloudFront waiting room + API behaviors), contract smoke, then destroy:
+
+```bash
+bash scripts/deploy-smoke-standard.sh
+```
+
+Writes `docs/launch/deploy-smoke-standard-YYYY-MM-DD.md` on success. Use `SKIP_DESTROY=1` to inspect the stack afterward.
+
+## Frontend assets for deploy
+
+```bash
+scripts/build-waiting-room.sh   # → apps/.../dist + packages/cdk/assets/waiting-room
+scripts/build-admin-portal.sh   # → apps/.../out + packages/cdk/assets/admin-portal
+scripts/build-edge-connector.sh # → packages/cdk/assets/edge-cloudfront (full preset)
+```
+
+## Lambda@Edge origin gate (`full` preset)
+
+Lambda@Edge **cannot use environment variables**. CDK bakes `waitingRoomUrl` + `jwtHmacSecret` into `edge-config.js` beside the handler.
+
+```json
+{
+  "domainName": "queue.example.com",
+  "preset": "full",
+  "origin": { "domainName": "shop.example.com" },
+  "security": { "jwtHmacSecret": "replace-with-a-long-random-secret" }
+}
+```
+
+That creates a third CloudFront distribution in front of `shop.example.com` with a **viewer-request** association: missing/invalid `vazue_token` → 302 to `https://queue.example.com?returnUrl=...`. Point the shop DNS at `ProtectedOriginUrl`.
+
+Without `origin.domainName`, the function is still built; associate the version ARN manually on an existing distribution (stack `env` must be `us-east-1` for true Lambda@Edge). See [with-existing-cloudfront example on GitHub](https://github.com/manyiu/vazue-queue/tree/main/examples/with-existing-cloudfront) for a CDK pattern that attaches `queue.edgeProtect.edgeVersion` to an existing shop distribution.
+
+Origin apps should reject requests without a valid admit token using `@yiu/queue-sdk` `verifyAdmitToken` (same HS256 secret).
+
+## Enroll buffer (SQS)
+
+Presets default `enrollBuffer: true`. Enroll Lambda sets `ENROLL_VIA_SQS=1`, returns **202** with a pre-assigned `request_id`, and the worker writes the visitor. Clients poll GET status (404 → treat as still enrolling).
+
+## Local dual API
+
+```bash
+cargo run -p queue-api --bin local-server --manifest-path packages/core-rust/Cargo.toml
+# queue :3000  ·  admin :3001 (event creates sync into the queue store)
+# Sets VAZUE_LOCAL=1 and ADMIN_DEV_AUTH=1 so admin Bearer checks are skipped.
+```
+
+Admin portal local: `NEXT_PUBLIC_ADMIN_DEV_AUTH=1` (and optional Cognito env vars). Deployed admin loads Cognito + API URLs from `/config.js` (`window.__VAZUE_ADMIN_CONFIG__`). First-event wizard, room theme, live throttle, and `GET /v1/events/{id}/export` CSV are on `:3001`.
+
+To exercise admin JWT presence checks locally: unset those flags and set `ADMIN_REQUIRE_JWT=1`.
+
+## Lambda artifacts
+
+`scripts/build-lambda-assets.sh` produces `packages/cdk/assets/lambda/*.zip`. On PR CI, missing zips are non-fatal (`REQUIRE_ARTIFACTS=0`); use workflow_dispatch on **Rust Lambda CI** with `require_artifacts=true` before a real deploy. Without zips, CDK synthesizes Node 501 placeholders.

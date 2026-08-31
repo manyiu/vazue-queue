@@ -32,5 +32,6 @@ for i in $(seq 1 30); do
   sleep 0.2
 done
 bash scripts/test-api.sh
+bash scripts/sdk-smoke.sh
 
 echo "test:local OK"

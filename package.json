@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "description": "OSS-first virtual waiting room on AWS",
   "packageManager": "pnpm@10.14.0",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
   "engines": {
     "node": ">=24.0.0"
   },
@@ -16,6 +19,9 @@
     "test:cdk": "pnpm --filter @yiu/queue-cdk test",
     "test:local": "bash scripts/test-local.sh",
     "verify": "bash scripts/verify.sh",
+    "website:dev": "pnpm --filter @vazue/website dev",
+    "website:build": "pnpm --filter @vazue/website build",
+    "website:preview": "bash scripts/website-preview.sh",
     "lint": "pnpm -r --filter=./packages/* run lint --if-present",
     "fmt": "cargo fmt --manifest-path packages/core-rust/Cargo.toml && pnpm -r --filter=./packages/* run fmt --if-present"
   },

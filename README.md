@@ -1,6 +1,8 @@
 # Vazue Queue
 
-OSS-first virtual waiting room on AWS — Queue-it-style fairness with serverless cost profile.
+Open source-first virtual waiting room on AWS — Queue-it-style fairness with serverless cost profile.
+
+**Documentation:** [queue.vazue.com/docs](https://queue.vazue.com/docs)
 
 ## Quick start
 
@@ -17,6 +19,7 @@ pnpm install
 docker compose -f docker-compose.local.yml up -d
 cargo run -p queue-api --bin local-server --manifest-path packages/core-rust/Cargo.toml
 pnpm --filter @vazue/waiting-room dev
+pnpm website:dev   # product site + docs locally
 ```
 
 ## Packages (npm)
@@ -30,17 +33,20 @@ pnpm --filter @vazue/waiting-room dev
 | `io.vazue:queue-sdk` | Java 11+ client (local Docker: `scripts/sdk-java-test.sh`; CI: native Maven) |
 | `@vazue/queue-edge-cloudfront` | Lambda@Edge connector (private; vendored via CDK) |
 
-Marketing landing source: `apps/landing` (target host `queue.vazue.com`).
+Product website source: `apps/website` (deployed to `queue.vazue.com`).
 
 ## Documentation
 
-| Topic | Path |
-|-------|------|
-| Deploy (CDK) | [`docs/deploy/oss-cdk.md`](docs/deploy/oss-cdk.md) |
-| Capacity / performance | [`docs/deploy/capacity.md`](docs/deploy/capacity.md) |
-| OSS v1 launch checklist | [`docs/launch/oss-v1.md`](docs/launch/oss-v1.md) |
-| SDK compatibility (Go/Java CI vs Docker) | [`docs/sdks/compatibility.md`](docs/sdks/compatibility.md) |
-| Lambda@Edge on existing CloudFront | [`examples/with-existing-cloudfront`](examples/with-existing-cloudfront) |
+| Topic | URL |
+|-------|-----|
+| Docs home | [queue.vazue.com/docs](https://queue.vazue.com/docs) |
+| Self-host (open source) | [queue.vazue.com/oss](https://queue.vazue.com/oss) |
+| Deploy (CDK) | [queue.vazue.com/docs/guides/deploy](https://queue.vazue.com/docs/guides/deploy) |
+| Capacity / performance | [queue.vazue.com/docs/guides/capacity](https://queue.vazue.com/docs/guides/capacity) |
+| Architecture | [queue.vazue.com/docs/concepts/architecture](https://queue.vazue.com/docs/concepts/architecture) |
+| SDK compatibility | [docs/sdks/compatibility.md](docs/sdks/compatibility.md) |
+| Lambda@Edge on existing CloudFront | [examples/with-existing-cloudfront](examples/with-existing-cloudfront) |
+| OSS v1 launch checklist | [docs/launch/oss-v1.md](docs/launch/oss-v1.md) |
 
 ## Capacity
 
@@ -52,7 +58,7 @@ See [`docs/deploy/capacity.md`](docs/deploy/capacity.md) for validated numbers, 
 
 ## License
 
-Apache-2.0 for published OSS packages. See `packages/saas/NOTICE.md` for SaaS boundary.
+Apache-2.0 for published open source packages. See `packages/saas/NOTICE.md` for SaaS boundary.
 
 ## Default region
 
