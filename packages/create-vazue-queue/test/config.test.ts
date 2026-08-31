@@ -37,6 +37,21 @@ describe('validateQueueCliConfig', () => {
     ).toThrow(/features\.stripe was removed/);
   });
 
+  it('accepts config without removed inviteOnly bot-protection flag', () => {
+    expect(() =>
+      validateQueueCliConfig({
+        domainName: 'queue.example.com',
+        preset: 'standard',
+        awsRegion: 'us-east-1',
+        security: {
+          botProtection: {
+            mode: 'off',
+          },
+        },
+      }),
+    ).not.toThrow();
+  });
+
   it('rejects challenge mode without turnstileSecretArn', () => {
     expect(() =>
       validateQueueCliConfig({

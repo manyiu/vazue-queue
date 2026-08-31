@@ -101,7 +101,6 @@ impl DynamoDbAdminStore {
             throughput_per_minute: Self::get_n_u32(item, "throughputPerMinute").unwrap_or(100),
             paused: Self::get_bool(item, "paused"),
             emergency_open: Self::get_bool(item, "emergencyOpen"),
-            invite_only: Self::get_bool(item, "inviteOnly"),
             dress_rehearsal: Self::get_bool(item, "dressRehearsal"),
             bot_protection: Self::bot_from(
                 &Self::get_s(item, "botProtection").unwrap_or_else(|| "off".into()),
@@ -230,7 +229,6 @@ impl AdminStore for DynamoDbAdminStore {
                 "emergencyOpen".into(),
                 AttributeValue::Bool(event.emergency_open),
             ),
-            ("inviteOnly".into(), AttributeValue::Bool(event.invite_only)),
             (
                 "dressRehearsal".into(),
                 AttributeValue::Bool(event.dress_rehearsal),
@@ -294,10 +292,6 @@ impl AdminStore for DynamoDbAdminStore {
         if let Some(v) = overrides.bot_protection {
             parts.push("botProtection = :b");
             values.insert(":b".into(), Self::s(Self::bot_to(v)));
-        }
-        if let Some(v) = overrides.invite_only {
-            parts.push("inviteOnly = :i");
-            values.insert(":i".into(), AttributeValue::Bool(v));
         }
         if let Some(v) = overrides.dress_rehearsal {
             parts.push("dressRehearsal = :d");

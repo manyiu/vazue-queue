@@ -139,5 +139,6 @@ mod tests {
         assert_eq!(body["limits"]["max_counter_shards"], 64);
         assert_eq!(body["limits"]["max_throughput_per_minute"], 10_000);
         assert!(body.get("deployment").is_none());
+        assert!(body["features"].get("valkey").is_none());
     }
 }

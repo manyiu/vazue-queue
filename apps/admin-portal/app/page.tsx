@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 type Caps = {
-  deployment?: string;
   limits?: { max_throughput_per_minute?: number; max_counter_shards?: number };
 };
 
@@ -13,7 +12,6 @@ type EventRow = {
   throughput_per_minute: number;
   paused: boolean;
   emergency_open: boolean;
-  invite_only: boolean;
   dress_rehearsal: boolean;
   bot_protection: string;
 };
@@ -210,7 +208,6 @@ export default function AdminHome() {
       throughput_per_minute: throughput,
       paused: false,
       emergency_open: false,
-      invite_only: false,
       dress_rehearsal: dressRehearsal,
       bot_protection: 'off',
       return_url: 'https://example.com/checkout',
@@ -347,7 +344,6 @@ export default function AdminHome() {
           </h1>
           <p style={{ color: '#444', marginTop: 0 }}>
             Owner admin — rooms, live throttle, dress rehearsal
-            {caps?.deployment ? ` · ${caps.deployment}` : ''}
           </p>
         </div>
         <button type="button" onClick={logout}>
@@ -489,7 +485,6 @@ export default function AdminHome() {
                   {ev.throughput_per_minute}/min · paused={String(ev.paused)} · bots=
                   {ev.bot_protection}
                   {ev.dress_rehearsal ? ' · dress rehearsal' : ''}
-                  {ev.invite_only ? ' · invite only' : ''}
                 </div>
                 {s ? (
                   <div style={{ marginTop: 6, color: '#444', fontSize: '0.95rem' }}>
@@ -531,12 +526,6 @@ export default function AdminHome() {
                     }
                   >
                     {ev.dress_rehearsal ? 'End rehearsal' : 'Dress rehearsal'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => liveOverride(ev.event_id, { invite_only: !ev.invite_only })}
-                  >
-                    {ev.invite_only ? 'Open enroll' : 'Invite only'}
                   </button>
                   <label htmlFor={`bots-${ev.event_id}`}>
                     Bot protection

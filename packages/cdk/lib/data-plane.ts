@@ -59,7 +59,6 @@ export class QueueDataPlane extends Construct {
       Events: this.table('Events', 'tenantId', 'eventId', removal),
       Visitors: visitors,
       Counters: this.table('Counters', 'eventId', 'counterType', removal),
-      Tokens: this.table('Tokens', 'eventId', 'tokenId', removal),
     };
 
     if (config.features.enrollBuffer) {
@@ -93,7 +92,6 @@ export class QueueDataPlane extends Construct {
       VISITORS_TABLE: this.tables.Visitors.tableName,
       COUNTERS_TABLE: this.tables.Counters.tableName,
       EVENTS_TABLE: this.tables.Events.tableName,
-      TOKENS_TABLE: this.tables.Tokens.tableName,
       ROOMS_TABLE: this.tables.Rooms.tableName,
       ENROLL_VIA_SQS: config.features.enrollBuffer ? '1' : '0',
     };

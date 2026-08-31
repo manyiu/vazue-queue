@@ -78,7 +78,6 @@
             "turnstileSiteKey": { "type": "string" },
             "turnstileSecretArn": { "type": "string" },
             "enrollMaxPerIpPerHour": { "type": "integer", "minimum": 0 },
-            "inviteOnly": { "type": "boolean" },
             "wafBotControl": { "type": "boolean" },
             "honeypot": { "type": "boolean" }
           }

@@ -28,7 +28,6 @@ pub struct LiveOverrides {
     pub emergency_open: Option<bool>,
     pub throughput_per_minute: Option<u32>,
     pub bot_protection: Option<BotProtectionMode>,
-    pub invite_only: Option<bool>,
     pub dress_rehearsal: Option<bool>,
 }
 
@@ -194,9 +193,6 @@ impl AdminStore for InMemoryAdminStore {
         }
         if let Some(v) = overrides.bot_protection {
             e.bot_protection = v;
-        }
-        if let Some(v) = overrides.invite_only {
-            e.invite_only = v;
         }
         if let Some(v) = overrides.dress_rehearsal {
             e.dress_rehearsal = v;

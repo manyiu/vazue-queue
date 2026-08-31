@@ -84,7 +84,6 @@ unproxy aws dynamodb put-item --table-name "$EVENTS_TABLE" --item "{
   \"throughputPerMinute\":{\"N\":\"60000\"},
   \"paused\":{\"BOOL\":false},
   \"emergencyOpen\":{\"BOOL\":false},
-  \"inviteOnly\":{\"BOOL\":false},
   \"dressRehearsal\":{\"BOOL\":false},
   \"botProtection\":{\"S\":\"off\"},
   \"returnUrl\":{\"S\":\"$RETURN_URL\"}

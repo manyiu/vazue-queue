@@ -12,7 +12,6 @@ pub enum VisitorStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisitorRecord {
-    pub tenant_id: String,
     pub event_id: String,
     pub request_id: String,
     pub session_id: String,
@@ -58,7 +57,6 @@ pub struct EventConfig {
     pub throughput_per_minute: u32,
     pub paused: bool,
     pub emergency_open: bool,
-    pub invite_only: bool,
     /// When true, queue runs for practice — tokens are valid but marked for origin to reject real sales.
     #[serde(default)]
     pub dress_rehearsal: bool,
@@ -74,4 +72,42 @@ pub enum BotProtectionMode {
     RateLimitOnly,
     ChallengeSuspicious,
     ChallengeAlways,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn event_config_json_omits_removed_invite_only() {
+        let event = EventConfig {
+            event_id: "e1".into(),
+            room_id: "r1".into(),
+            throughput_per_minute: 100,
+            paused: false,
+            emergency_open: false,
+            dress_rehearsal: false,
+            bot_protection: BotProtectionMode::Off,
+            return_url: None,
+        };
+        let value = serde_json::to_value(&event).unwrap();
+        assert!(value.get("invite_only").is_none());
+    }
+
+    #[test]
+    fn visitor_record_json_omits_redundant_tenant_id() {
+        let visitor = VisitorRecord {
+            event_id: "e1".into(),
+            request_id: "req-1".into(),
+            session_id: "sess-1".into(),
+            position: 1,
+            shard: 0,
+            status: VisitorStatus::Waiting,
+            enrolled_at: 1_700_000_000,
+            return_url: None,
+            admit_token: None,
+        };
+        let value = serde_json::to_value(&visitor).unwrap();
+        assert!(value.get("tenant_id").is_none());
+    }
 }

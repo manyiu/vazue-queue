@@ -17,7 +17,6 @@ export interface BotProtectionConfig {
   turnstileSiteKey?: string;
   turnstileSecretArn?: string;
   enrollMaxPerIpPerHour?: number;
-  inviteOnly?: boolean;
   wafBotControl?: boolean;
   honeypot?: boolean;
 }

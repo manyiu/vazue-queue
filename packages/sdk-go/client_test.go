@@ -103,6 +103,20 @@ func TestClientEnrollAndStatus(t *testing.T) {
 	}
 }
 
+func TestEnrollRequestOmitsInviteCode(t *testing.T) {
+	body, err := json.Marshal(EnrollRequest{
+		SessionID:      "s1",
+		ReturnURL:      "https://example.com",
+		TurnstileToken: "tok",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(body), "invite_code") {
+		t.Fatalf("invite_code must not be serialized: %s", body)
+	}
+}
+
 func TestClientStatus404Soft(t *testing.T) {
 	c := NewClient("http://queue.test")
 	c.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {

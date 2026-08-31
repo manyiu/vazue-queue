@@ -28,7 +28,6 @@ pub struct EnrollRequest {
     pub request_id: Option<String>,
     pub session_id: Option<String>,
     pub return_url: Option<String>,
-    pub invite_code: Option<String>,
     pub turnstile_token: Option<String>,
 }
 
@@ -106,7 +105,6 @@ struct MemInner {
     session_index: HashMap<String, String>, // tenant|event|session -> request_id
     queue_counter: HashMap<String, u64>,
     serving_counter: HashMap<String, u64>,
-    invites: HashMap<String, bool>,
 }
 
 pub struct InMemoryStore {
@@ -170,7 +168,7 @@ impl QueueStore for InMemoryStore {
         let mut waiting = 0u64;
         let mut admitted = 0u64;
         for v in g.visitors.values() {
-            if v.tenant_id == tenant_id && v.event_id == event_id {
+            if v.event_id == event_id {
                 match v.status {
                     VisitorStatus::Waiting | VisitorStatus::Enrolled => waiting += 1,
                     VisitorStatus::Admitted => admitted += 1,
@@ -209,19 +207,6 @@ impl QueueStore for InMemoryStore {
             return Err(StoreError::Conflict("queue paused".into()));
         }
 
-        if event.invite_only {
-            let code = req.invite_code.as_deref().unwrap_or("");
-            if code.is_empty()
-                || !g
-                    .invites
-                    .get(&format!("{ek}|{code}"))
-                    .copied()
-                    .unwrap_or(false)
-            {
-                return Err(StoreError::Conflict("invite required".into()));
-            }
-        }
-
         if matches!(event.bot_protection, BotProtectionMode::ChallengeAlways)
             && req.turnstile_token.as_deref().unwrap_or("").is_empty()
         {
@@ -254,7 +239,6 @@ impl QueueStore for InMemoryStore {
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| Uuid::new_v4().to_string());
         let record = VisitorRecord {
-            tenant_id: tenant_id.to_string(),
             event_id: req.event_id.clone(),
             request_id: request_id.clone(),
             session_id: session_id.clone(),
@@ -311,8 +295,7 @@ impl QueueStore for InMemoryStore {
         let serving = *g.serving_counter.get(&ek).unwrap_or(&0);
         let mut abandoned = 0u64;
         for v in g.visitors.values_mut() {
-            if v.tenant_id == tenant_id
-                && v.event_id == event_id
+            if v.event_id == event_id
                 && matches!(v.status, VisitorStatus::Waiting)
                 && now - v.enrolled_at > ttl
             {
@@ -396,12 +379,6 @@ impl InMemoryStore {
             dress_rehearsal: event.dress_rehearsal,
         })
     }
-
-    pub fn add_invite(&self, tenant_id: &str, event_id: &str, code: &str) {
-        let mut g = self.inner.lock().unwrap();
-        let key = format!("{}|{code}", Self::event_key(tenant_id, event_id));
-        g.invites.insert(key, true);
-    }
 }
 
 #[cfg(test)]
@@ -422,7 +399,6 @@ mod tests {
                     throughput_per_minute: 60,
                     paused: false,
                     emergency_open: true,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: Some("https://example.com".into()),
@@ -439,7 +415,6 @@ mod tests {
                     request_id: None,
                     session_id: Some("s1".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -470,7 +445,6 @@ mod tests {
                     throughput_per_minute: 60,
                     paused: false,
                     emergency_open: false,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
@@ -486,7 +460,6 @@ mod tests {
                     request_id: None,
                     session_id: Some("same".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -502,7 +475,6 @@ mod tests {
                     request_id: None,
                     session_id: Some("same".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -527,7 +499,6 @@ mod tests {
                     throughput_per_minute: 30,
                     paused: false,
                     emergency_open: false,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
@@ -543,7 +514,6 @@ mod tests {
                     request_id: None,
                     session_id: Some("s1".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -581,7 +551,6 @@ mod tests {
                     throughput_per_minute: 10,
                     paused: true,
                     emergency_open: false,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
@@ -597,7 +566,6 @@ mod tests {
                     request_id: None,
                     session_id: None,
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -621,7 +589,6 @@ mod tests {
                     throughput_per_minute: 10,
                     paused: false,
                     emergency_open: false,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
@@ -637,7 +604,6 @@ mod tests {
                     request_id: Some("fixed-req".into()),
                     session_id: Some("s-fixed".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,

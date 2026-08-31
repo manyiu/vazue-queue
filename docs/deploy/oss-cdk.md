@@ -115,7 +115,7 @@ Local dev: set `TURNSTILE_SECRET` in the environment instead of an ARN (`VAZUE_L
 ## Health
 
 - `GET /health` — liveness (data plane and admin)
-- `GET /ready` — readiness (`deployment`, `tenantId`); no auth
+- `GET /ready` — readiness (`tenantId`); no auth
 
 ## Load test
 

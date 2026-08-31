@@ -125,7 +125,6 @@ async fn main() {
         throughput_per_minute: 100,
         paused: false,
         emergency_open: false,
-        invite_only: false,
         dress_rehearsal: false,
         bot_protection: queue_kernel::BotProtectionMode::Off,
         return_url: Some("https://example.com/checkout".into()),

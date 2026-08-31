@@ -131,7 +131,6 @@ async fn handle_enroll(state: Arc<AppState>, req: Request) -> Result<Response<Bo
             request_id: None,
             session_id: None,
             return_url: None,
-            invite_code: None,
             turnstile_token: None,
         });
     body.event_id = event_id.clone();

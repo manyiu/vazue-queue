@@ -33,6 +33,24 @@ if grep -q 'api.queue.vazue.com' openapi/vazue-queue.yaml; then
   echo "ERROR: openapi must not include SaaS management server" >&2
   exit 1
 fi
+if grep -q 'invite_code' openapi/vazue-queue.yaml || grep -q 'invite_only' openapi/vazue-queue.yaml; then
+  echo "ERROR: openapi must not document removed invite-only enroll fields" >&2
+  exit 1
+fi
+
+echo "==> post-SaaS cleanup guards"
+test ! -d packages/saas || {
+  echo "ERROR: packages/saas must be removed (OSS-only product)" >&2
+  exit 1
+}
+if grep -q 'TOKENS_TABLE' packages/cdk/lib/data-plane.ts; then
+  echo "ERROR: data-plane must not provision TOKENS_TABLE" >&2
+  exit 1
+fi
+if grep -q 'pub valkey' packages/core-rust/crates/platform/src/lib.rs; then
+  echo "ERROR: platform capabilities must not expose removed valkey flag" >&2
+  exit 1
+fi
 
 echo "==> Go / Java SDKs"
 # Policy: native toolchains in GitHub Actions; Docker only as a local laptop helper.

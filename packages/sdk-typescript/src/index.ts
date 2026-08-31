@@ -2,7 +2,6 @@ export interface EnrollRequest {
   request_id?: string;
   session_id?: string;
   return_url?: string;
-  invite_code?: string;
   turnstile_token?: string;
 }
 

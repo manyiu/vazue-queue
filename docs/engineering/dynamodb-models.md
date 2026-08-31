@@ -8,7 +8,6 @@ Default region: **us-east-1**. All tables on-demand.
 | Events | tenantId | eventId | Throughput, bot mode, live overrides, TTL |
 | Visitors | eventId | requestId | Position, session, status, admit_token, ttl |
 | Counters | eventId | counterType | `queue#shardN`, `serving` — atomic ADD |
-| Tokens | eventId | tokenId | Admit audit / idempotency |
 
 ## GSIs
 

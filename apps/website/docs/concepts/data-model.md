@@ -10,7 +10,6 @@ DynamoDB tables (on-demand). Default region: **us-east-1**.
 | **Events** | tenantId | eventId | Throughput, bot mode, live overrides, TTL |
 | **Visitors** | eventId | requestId | Position, session, status, admit token, TTL |
 | **Counters** | eventId | counterType | `queue#shardN`, `serving` — atomic ADD |
-| **Tokens** | eventId | tokenId | Admit audit / idempotency |
 
 ## Key access patterns
 

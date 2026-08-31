@@ -20,7 +20,6 @@ pub struct DynamoDbStore {
     events_table: String,
     visitors_table: String,
     counters_table: String,
-    tokens_table: String,
     queue: QueueConfig,
 }
 
@@ -34,7 +33,6 @@ impl DynamoDbStore {
                 .map_err(|_| StoreError::Message("VISITORS_TABLE required".into()))?,
             counters_table: env::var("COUNTERS_TABLE")
                 .map_err(|_| StoreError::Message("COUNTERS_TABLE required".into()))?,
-            tokens_table: env::var("TOKENS_TABLE").unwrap_or_else(|_| "Tokens".into()),
             queue: QueueConfig {
                 counter_shards: env::var("COUNTER_SHARDS")
                     .ok()
@@ -101,7 +99,6 @@ impl DynamoDbStore {
                 as u32,
             paused: Self::get_bool(item, "paused"),
             emergency_open: Self::get_bool(item, "emergencyOpen"),
-            invite_only: Self::get_bool(item, "inviteOnly"),
             dress_rehearsal: Self::get_bool(item, "dressRehearsal"),
             bot_protection: bot,
             return_url: Self::get_s(item, "returnUrl"),
@@ -122,7 +119,6 @@ impl DynamoDbStore {
             _ => VisitorStatus::Waiting,
         };
         Ok(VisitorRecord {
-            tenant_id: Self::get_s(item, "tenantId").unwrap_or_default(),
             event_id: Self::get_s(item, "eventId").ok_or(StoreError::NotFound)?,
             request_id: Self::get_s(item, "requestId").ok_or(StoreError::NotFound)?,
             session_id: Self::get_s(item, "sessionId").unwrap_or_default(),
@@ -233,16 +229,6 @@ impl DynamoDbStore {
                 .await
                 .map_err(|e| StoreError::Message(e.to_string()))?;
 
-            let _ = self
-                .client
-                .put_item()
-                .table_name(&self.tokens_table)
-                .item("eventId", Self::av_s(event_id))
-                .item("tokenId", Self::av_s(request_id))
-                .item("issuedAt", Self::av_n(Utc::now().timestamp()))
-                .send()
-                .await;
-
             if visitor.position > serving {
                 let _ = self
                     .add_counter(event_id, "serving", (visitor.position - serving) as i64)
@@ -295,7 +281,6 @@ impl QueueStore for DynamoDbStore {
                 "emergencyOpen".into(),
                 AttributeValue::Bool(event.emergency_open),
             ),
-            ("inviteOnly".into(), AttributeValue::Bool(event.invite_only)),
             (
                 "dressRehearsal".into(),
                 AttributeValue::Bool(event.dress_rehearsal),
@@ -438,7 +423,6 @@ impl QueueStore for DynamoDbStore {
         let mut item = HashMap::from([
             ("eventId".into(), Self::av_s(&req.event_id)),
             ("requestId".into(), Self::av_s(&request_id)),
-            ("tenantId".into(), Self::av_s(tenant_id)),
             ("sessionId".into(), Self::av_s(&session_id)),
             ("position".into(), Self::av_n(position)),
             ("shard".into(), Self::av_n(shard)),
