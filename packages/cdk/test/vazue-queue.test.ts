@@ -279,7 +279,6 @@ describe('config', () => {
       }),
     ).toThrow(/features\.stripe was removed/);
   });
-
   it('config schema omits removed inviteOnly bot-protection flag', () => {
     const schemaPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'config-schema.json');
     const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
