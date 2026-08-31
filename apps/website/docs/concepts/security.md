@@ -40,7 +40,7 @@ Configure `security.corsAllowedOrigins` for browser clients calling the API from
 
 ## Reporting vulnerabilities
 
-See [SECURITY.md on GitHub](https://github.com/manyiu/vazue-queue/blob/main/SECURITY.md). Do not report SaaS billing issues via public channels.
+See [SECURITY.md on GitHub](https://github.com/manyiu/vazue-queue/blob/main/SECURITY.md).
 
 ## Related
 

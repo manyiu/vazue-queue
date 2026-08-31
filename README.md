@@ -54,11 +54,9 @@ Plan for **~10,000 concurrent status pollers** (in-region, RC SLOs) on a default
 
 See [`docs/deploy/capacity.md`](docs/deploy/capacity.md) for validated numbers, estimation formulas, and limits vs real deployments.
 
-`packages/saas/` is commercial and **not** published.
-
 ## License
 
-Apache-2.0 for published open source packages. See `packages/saas/NOTICE.md` for SaaS boundary.
+Apache-2.0 for published open source packages.
 
 ## Default region
 

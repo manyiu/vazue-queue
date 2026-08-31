@@ -78,7 +78,7 @@ Load-test records are published with raw data — including what **default AWS q
 
 - **Not on AWS** — stack is CDK + Lambda + DynamoDB (+ CloudFront). No Kubernetes or multi-cloud preset today.
 - **Need a work queue** — use SQS, Temporal, or similar for background jobs.
-- **Require zero ops** — a managed waiting room service or [managed Vazue](/pricing) (coming) is a better fit.
+- **Require zero ops** — a managed waiting room service is a better fit.
 - **Global sub-50ms status everywhere** — plan for cross-region RTT; edge caching helps polling but enroll is regional.
 
 ## Next steps
@@ -86,4 +86,4 @@ Load-test records are published with raw data — including what **default AWS q
 1. [Quickstart](/docs/getting-started/quickstart) — deploy to an AWS account
 2. [Local development](/docs/getting-started/local-development) — run queue + admin APIs locally
 3. [SDK examples](/docs/reference/sdks) — enroll, poll, verify admit token
-4. [Open source self-host](/oss) — packages and license boundary
+4. [Open source self-host](/oss) — packages and license

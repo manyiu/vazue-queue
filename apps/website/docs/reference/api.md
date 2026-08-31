@@ -11,7 +11,7 @@ Base URL: the queue domain or `http://localhost:3000` locally.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Liveness |
-| `GET` | `/ready` | Readiness (`deployment`, `tenantId`) |
+| `GET` | `/ready` | Readiness (`tenantId`) |
 | `POST` | `/v1/events/{eventId}/enroll` | Join queue; idempotent by `session_id` |
 | `GET` | `/v1/events/{eventId}/status` | Poll position; returns `admit_token` when admitted |
 | `POST` | `/v1/events/{eventId}/admit` | Optional; prefer status in happy path |
@@ -51,13 +51,13 @@ Base URL: the queue domain or `http://localhost:3000` locally.
 
 ## Control plane (admin)
 
-Base URL: admin API (`:3001` locally) or `api.queue.vazue.com` (SaaS).
+Base URL: admin API on the deployed stack (`:3001` locally).
 
 Requires Cognito JWT (deployed) or dev auth bypass (local).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/v1/capabilities` | Deployment profile and plan limits |
+| `GET` | `/v1/capabilities` | Stack capabilities and limits |
 | `GET/POST` | `/v1/rooms` | Room CRUD |
 | `GET/POST/PATCH` | `/v1/events` | Event CRUD + live overrides |
 | `GET` | `/v1/events/{id}/export` | CSV export |
@@ -67,7 +67,6 @@ Requires Cognito JWT (deployed) or dev auth bypass (local).
 | URL | Use |
 |-----|-----|
 | `http://localhost:3000` | Local data plane |
-| `https://queue.example.com` | Open source self-hosted |
-| `https://api.queue.vazue.com` | SaaS management |
+| `https://queue.example.com` | Self-hosted stack |
 
 [Visitor flow →](/docs/concepts/visitor-flow) · [SDKs →](/docs/reference/sdks)

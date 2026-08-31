@@ -3,7 +3,7 @@
 Vazue Queue is an **open source virtual waiting room** for AWS — fair FIFO admission, serverless cost profile, and admit tokens verifiable at the origin.
 
 ::: tip New here?
-Unsure whether this is the right tool? Start with **[Why Vazue Queue](/docs/introduction/why-vazue)** — comparison vs SaaS waiting rooms and DIY queues.
+Unsure whether this is the right tool? Start with **[Why Vazue Queue](/docs/introduction/why-vazue)** — comparison vs other waiting rooms and DIY queues.
 :::
 
 ## Deployment overview
@@ -30,15 +30,7 @@ flowchart TB
 | Operator dashboard | Admin portal + Cognito (`full` preset) |
 | Origin protection | JWT verification + optional Lambda@Edge |
 
-Deploy with **`@yiu/queue-cdk`** or use **managed Vazue** (coming soon) — same APIs either way.
-
-## Deployment paths
-
-| Path | Typical use case |
-|------|------------------|
-| **[Self-host on AWS](/oss)** | Apache-2.0 source, direct AWS billing, CDK control |
-| **[Managed SaaS](/pricing)** | Zero infrastructure (coming soon) |
-| **[Local dev](/docs/getting-started/local-development)** | Enroll/status testing before deploy |
+Deploy with **`@yiu/queue-cdk`** into a dedicated AWS account.
 
 ## What to read first
 

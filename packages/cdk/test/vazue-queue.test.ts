@@ -48,7 +48,7 @@ function policyActionsForRole(template: Template, roleLogicalId: string): string
 describe('VazueQueue presets', () => {
   it('minimal has DynamoDB tables and HTTP API, no CloudFront', () => {
     const template = synthPreset('minimal');
-    template.resourceCountIs('AWS::DynamoDB::Table', 7);
+    template.resourceCountIs('AWS::DynamoDB::Table', 5);
     template.resourceCountIs('AWS::ApiGatewayV2::Api', 1);
     template.resourceCountIs('AWS::CloudFront::Distribution', 0);
     template.resourceCountIs('AWS::Cognito::UserPool', 0);
@@ -57,7 +57,7 @@ describe('VazueQueue presets', () => {
   it('standard includes CloudFront status cache policy', () => {
     const template = synthPreset('standard');
     template.resourceCountIs('AWS::CloudFront::Distribution', 1);
-    template.resourceCountIs('AWS::DynamoDB::Table', 7);
+    template.resourceCountIs('AWS::DynamoDB::Table', 5);
     template.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         DefaultRootObject: 'index.html',
@@ -269,9 +269,55 @@ describe('config', () => {
     const cfg = loadAndMergeConfig(base, prod);
     expect(cfg.queue?.defaultThroughputPerMinute).toBe(500);
   });
+
+  it('rejects removed stripe feature in config schema', () => {
+    expect(() =>
+      validateConfig({
+        domainName: 'queue.example.com',
+        features: { stripe: true },
+      }),
+    ).toThrow(/features\.stripe was removed/);
+  });
+});
+
+describe('OSS-only stack', () => {
+  it('provisions only operator tables (no SaaS Tenants/UsageDaily)', () => {
+    const template = synthPreset('minimal');
+    const tableIds = Object.keys(template.findResources('AWS::DynamoDB::Table'));
+    expect(tableIds.some((id) => id.includes('Rooms'))).toBe(true);
+    expect(tableIds.some((id) => id.includes('Events'))).toBe(true);
+    expect(tableIds.some((id) => id.includes('Tenants'))).toBe(false);
+    expect(tableIds.some((id) => id.includes('UsageDaily'))).toBe(false);
+  });
+
+  it('does not inject VAZUE_DEPLOYMENT_PROFILE on queue Lambdas', () => {
+    const template = synthPreset('minimal');
+    const fns = Object.values(template.findResources('AWS::Lambda::Function'));
+    for (const fn of fns) {
+      const env = fn.Properties?.Environment?.Variables ?? {};
+      expect(env.VAZUE_DEPLOYMENT_PROFILE).toBeUndefined();
+    }
+  });
+
+  it('does not expose TENANTS_TABLE on admin Lambda', () => {
+    const template = synthPreset('full');
+    const fns = template.findResources('AWS::Lambda::Function');
+    const admin = Object.entries(fns).find(([id]) => id.includes('AdminApiFn'));
+    expect(admin).toBeDefined();
+    const env = (admin![1].Properties?.Environment?.Variables ?? {}) as Record<string, string>;
+    expect(env.TENANTS_TABLE).toBeUndefined();
+    expect(env.VAZUE_DEPLOYMENT_PROFILE).toBeUndefined();
+  });
 });
 
 describe('presets', () => {
+  it('feature flags exclude commercial stripe metering', () => {
+    for (const preset of ['minimal', 'standard', 'full'] as const) {
+      const features = resolveFeatures(preset);
+      expect(Object.keys(features)).not.toContain('stripe');
+    }
+  });
+
   it('full enables admin and edge connector', () => {
     expect(resolveFeatures('full').adminPortal).toBe(true);
     expect(resolveFeatures('full').edgeConnector).toBe(true);
@@ -304,26 +350,5 @@ describe('edge connector', () => {
     expect(
       outputs.some((o) => String((o as { Description?: string }).Description ?? '').includes('Qualified version ARN')),
     ).toBe(true);
-  });
-});
-
-describe('SaaS profile env', () => {
-  it('sets VAZUE_DEPLOYMENT_PROFILE=saas when stripe feature enabled', () => {
-    const app = new App();
-    const stack = new Stack(app, 'SaasProfile');
-    new VazueQueue(stack, 'Queue', {
-      domainName: 'queue.example.com',
-      preset: 'full',
-      awsRegion: 'us-east-1',
-      features: { stripe: true },
-    });
-    const template = Template.fromStack(stack);
-    template.hasResourceProperties('AWS::Lambda::Function', {
-      Environment: {
-        Variables: Match.objectLike({
-          VAZUE_DEPLOYMENT_PROFILE: 'saas',
-        }),
-      },
-    });
   });
 });

@@ -24,6 +24,15 @@ grep -q '/ready' openapi/vazue-queue.yaml
 grep -q 'return_url' openapi/vazue-queue.yaml
 grep -q '/v1/events/{eventId}/export' openapi/vazue-queue.yaml
 grep -q '/v1/rooms/{roomId}' openapi/vazue-queue.yaml
+grep -q 'tenantId' openapi/vazue-queue.yaml
+if grep -q 'deployment:' openapi/vazue-queue.yaml; then
+  echo "ERROR: openapi /ready must not document deployment profile" >&2
+  exit 1
+fi
+if grep -q 'api.queue.vazue.com' openapi/vazue-queue.yaml; then
+  echo "ERROR: openapi must not include SaaS management server" >&2
+  exit 1
+fi
 
 echo "==> Go / Java SDKs"
 # Policy: native toolchains in GitHub Actions; Docker only as a local laptop helper.
@@ -71,9 +80,6 @@ echo "==> pnpm package tests"
 pnpm --filter @yiu/queue-cdk test
 pnpm --filter @yiu/queue-sdk test
 pnpm --filter create-vazue-queue test
-pnpm --filter @vazue/saas-plan-limits test
-pnpm --filter @vazue/saas-billing test
-pnpm --filter @vazue/saas-cdk test
 pnpm --filter @vazue/queue-edge-cloudfront test
 
 echo "verify OK"

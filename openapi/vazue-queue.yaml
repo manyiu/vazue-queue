@@ -13,8 +13,6 @@ servers:
     description: Local data plane
   - url: https://queue.example.com
     description: OSS self-hosted
-  - url: https://api.queue.vazue.com
-    description: SaaS management (Phase 5)
 paths:
   /health:
     get:
@@ -35,7 +33,7 @@ paths:
     get:
       operationId: ready
       tags: [Ops]
-      description: Readiness. No auth. Returns deployment profile and tenantId.
+      description: Readiness. No auth. Returns tenantId.
       responses:
         '200':
           description: Ready to serve
@@ -45,7 +43,6 @@ paths:
                 type: object
                 properties:
                   status: { type: string }
-                  deployment: { type: string }
                   tenantId: { type: string }
   /v1/capabilities:
     get:
@@ -53,7 +50,7 @@ paths:
       tags: [Management]
       responses:
         '200':
-          description: Deployment capabilities and plan limits
+          description: Stack capabilities and limits
   /v1/events/{eventId}/enroll:
     post:
       operationId: enroll

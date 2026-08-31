@@ -1,45 +1,13 @@
-//! Platform adapters: deployment profile, capabilities, metering stubs.
+//! Platform adapters: deployment capabilities and Turnstile verification.
 
-pub mod metering;
 pub mod turnstile;
 
-pub use metering::{emit_usage, MeterName, UsageEvent};
 pub use turnstile::verify_turnstile;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum DeploymentProfile {
-    #[default]
-    Oss,
-    Saas,
-}
-
-impl DeploymentProfile {
-    pub fn from_env() -> Self {
-        match std::env::var("VAZUE_DEPLOYMENT_PROFILE")
-            .unwrap_or_else(|_| "oss".into())
-            .to_lowercase()
-            .as_str()
-        {
-            "saas" => Self::Saas,
-            _ => Self::Oss,
-        }
-    }
-
-    pub fn emit_usage_events(&self) -> bool {
-        matches!(self, Self::Saas)
-    }
-
-    pub fn enforce_plan_limits(&self) -> bool {
-        matches!(self, Self::Saas)
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Capabilities {
-    pub deployment: DeploymentProfile,
     pub limits: PlanLimits,
     pub features: FeatureFlags,
 }
@@ -80,103 +48,24 @@ impl Default for FeatureFlags {
     }
 }
 
-impl Capabilities {
-    pub fn oss_full() -> Self {
-        Self {
-            deployment: DeploymentProfile::Oss,
-            limits: PlanLimits::default(),
-            features: FeatureFlags::default(),
-        }
-    }
-
-    pub fn saas_free() -> Self {
-        Self {
-            deployment: DeploymentProfile::Saas,
-            limits: PlanLimits {
-                max_counter_shards: 8,
-                max_throughput_per_minute: 200,
-                max_concurrent_visitors: 10_000,
-            },
-            features: FeatureFlags {
-                valkey: false,
-                edge_connector: true,
-                bot_protection: true,
-                analytics: true,
-            },
-        }
-    }
-
-    pub fn from_env() -> Self {
-        match DeploymentProfile::from_env() {
-            DeploymentProfile::Saas => Self::saas_free(),
-            DeploymentProfile::Oss => Self::oss_full(),
-        }
-    }
-
-    /// Returns an error message when the desired settings exceed plan limits (SaaS only).
-    pub fn check_queue_limits(
-        &self,
-        counter_shards: Option<u32>,
-        throughput_per_minute: Option<u32>,
-    ) -> Result<(), String> {
-        if !self.deployment.enforce_plan_limits() {
-            return Ok(());
-        }
-        if let Some(shards) = counter_shards {
-            if shards > self.limits.max_counter_shards {
-                return Err(format!(
-                    "counter_shards {} exceeds plan max {}",
-                    shards, self.limits.max_counter_shards
-                ));
-            }
-        }
-        if let Some(tpm) = throughput_per_minute {
-            if tpm > self.limits.max_throughput_per_minute {
-                return Err(format!(
-                    "throughput_per_minute {} exceeds plan max {}",
-                    tpm, self.limits.max_throughput_per_minute
-                ));
-            }
-        }
-        Ok(())
-    }
-}
-
-/// Resolve tenant id from hostname like `{tenant}.wait.queue.vazue.com`.
-pub fn tenant_from_host(host: &str) -> Option<String> {
-    let host = host.split(':').next().unwrap_or(host).to_lowercase();
-    let parts: Vec<&str> = host.split('.').collect();
-    // {tenant}.wait.queue.vazue.com
-    if parts.len() >= 5 && parts[1] == "wait" {
-        return Some(parts[0].to_string());
-    }
-    // OSS single domain — default tenant
-    Some("default".to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn parse_saas_host() {
-        assert_eq!(
-            tenant_from_host("acme.wait.queue.vazue.com"),
-            Some("acme".into())
-        );
+    fn default_capabilities_expose_full_oss_limits() {
+        let caps = Capabilities::default();
+        assert_eq!(caps.limits.max_counter_shards, 64);
+        assert_eq!(caps.limits.max_throughput_per_minute, 10_000);
+        assert_eq!(caps.limits.max_concurrent_visitors, 1_000_000);
+        assert!(caps.features.edge_connector);
     }
 
     #[test]
-    fn saas_enforces_limits() {
-        let caps = Capabilities::saas_free();
-        assert!(caps.check_queue_limits(Some(8), Some(200)).is_ok());
-        assert!(caps.check_queue_limits(Some(9), None).is_err());
-        assert!(caps.check_queue_limits(None, Some(201)).is_err());
-    }
-
-    #[test]
-    fn oss_skips_limits() {
-        let caps = Capabilities::oss_full();
-        assert!(caps.check_queue_limits(Some(10_000), Some(10_000)).is_ok());
+    fn capabilities_json_has_no_deployment_profile() {
+        let value = serde_json::to_value(Capabilities::default()).unwrap();
+        assert!(value.get("limits").is_some());
+        assert!(value.get("features").is_some());
+        assert!(value.get("deployment").is_none());
     }
 }

@@ -14,7 +14,7 @@ pnpm verify
 |------|---------|--------|------------|
 | PR | pull_request | CI verify | CODEOWNERS merge |
 | Implement | plan todo | verify + targeted tests | none |
-| RC | saas-rc tag / dispatch | staging smoke + load test | before prod |
+| RC | rc tag / dispatch | staging smoke + load test | before prod |
 | Publish | Changesets | npm publish | maintainer |
 | Build cop | main red | revert or fix | build cop |
 

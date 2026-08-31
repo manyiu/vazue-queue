@@ -40,7 +40,6 @@
         "waf": { "type": "boolean" },
         "edgeConnector": { "type": "boolean" },
         "analytics": { "type": "boolean" },
-        "stripe": { "type": "boolean" },
         "enrollBuffer": { "type": "boolean", "default": true }
       }
     },

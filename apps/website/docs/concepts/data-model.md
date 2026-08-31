@@ -6,13 +6,11 @@ DynamoDB tables (on-demand). Default region: **us-east-1**.
 
 | Table | PK | SK | Purpose |
 |-------|----|----|---------|
-| **Tenants** | tenantId | — | Plan, Stripe ids (SaaS), API key hashes |
 | **Rooms** | tenantId | roomId | Theme, default queue config |
 | **Events** | tenantId | eventId | Throughput, bot mode, live overrides, TTL |
 | **Visitors** | eventId | requestId | Position, session, status, admit token, TTL |
 | **Counters** | eventId | counterType | `queue#shardN`, `serving` — atomic ADD |
 | **Tokens** | eventId | tokenId | Admit audit / idempotency |
-| **UsageDaily** | tenantId | date | Meter aggregates (SaaS) |
 
 ## Key access patterns
 

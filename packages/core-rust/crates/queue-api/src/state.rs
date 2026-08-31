@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use aws_sdk_sqs::Client as SqsClient;
-use platform::{Capabilities, DeploymentProfile};
+use platform::Capabilities;
 use queue_kernel::JwtKeys;
 
 use crate::secrets::bot_protection_needs_turnstile;
@@ -15,7 +15,6 @@ pub struct AppState {
     pub keys: Option<Arc<JwtKeys>>,
     pub use_rsa: bool,
     pub tenant_id: String,
-    pub profile: DeploymentProfile,
     pub capabilities: Capabilities,
     pub enroll_via_sqs: bool,
     /// Reused across buffered enroll requests (cold start only).
@@ -32,8 +31,7 @@ impl AppState {
             keys: Some(Arc::new(JwtKeys::from_hmac_secret(secret))),
             use_rsa: false,
             tenant_id: "default".into(),
-            profile: DeploymentProfile::Oss,
-            capabilities: Capabilities::oss_full(),
+            capabilities: Capabilities::default(),
             enroll_via_sqs: false,
             enroll_sqs: None,
             enroll_queue_url: None,

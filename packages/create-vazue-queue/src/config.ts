@@ -44,6 +44,10 @@ export function validateQueueCliConfig(raw: unknown): asserts raw is QueueCliCon
   ) {
     throw new Error('Invalid config: preset must be minimal|standard|full');
   }
+  const features = cfg.features as Record<string, unknown> | undefined;
+  if (features && typeof features === 'object' && 'stripe' in features) {
+    throw new Error('Invalid config: features.stripe was removed (OSS-only product)');
+  }
   const bot = (cfg.security as Record<string, unknown> | undefined)?.botProtection as
     | Record<string, unknown>
     | undefined;
