@@ -56,4 +56,6 @@ Feature flags in `vazue-queue.config.json` can override individual features rega
 | standard | Low (+ CloudFront) | Ready-made waiting room |
 | full | Higher (+ Cognito, WAF, edge) | Full operator toolkit |
 
+**Capacity:** ~10K concurrent pollers and ~1K simultaneous enrolls are validated baselines on **default AWS quotas** — enroll bursts can approach Lambda's [1,000 concurrent-execution quota per Region](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html) (account-wide; adjustable via Service Quotas). See [Capacity planning](/docs/guides/capacity).
+
 [Deploy guide →](/docs/guides/deploy) · [Capacity](/docs/guides/capacity)

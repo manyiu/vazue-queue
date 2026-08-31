@@ -54,7 +54,8 @@ Expected briefly after **202** enroll response. Worker is still writing the visi
 
 - Run load tests **in the same region** as the stack
 - Global visitors add RTT not covered by in-region tests
-- Request Lambda concurrency / API Gateway quota increases for large events
+- **Enroll bursts** above ~1,000 simultaneous unique enrolls can approach Lambda's default **1,000 concurrent-execution quota per Region** (account-wide across all functions) — request a [quota increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html) in Service Quotas (support case). See [Lambda concurrency quotas](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html). Check limit: `aws lambda get-account-settings`
+- Request **API Gateway** quota increases for large events
 - Use **`standard` preset** for CloudFront status caching
 
 ## Health checks

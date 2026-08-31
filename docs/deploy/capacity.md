@@ -19,6 +19,8 @@ Tests use `scripts/load-test-status.js`: each virtual user polls `GET /v1/events
 
 Tests use `scripts/load-test-enroll.js`: each virtual user performs one unique `POST …/enroll` (flash-traffic / on-sale shape).
 
+**Why ~1K enrolls on default quotas:** Each simultaneous enroll consumes Lambda concurrency while handlers run. A flash of ~1,000 unique enrolls can approach Lambda's **default account-wide quota of 1,000 concurrent executions per Region** ([concurrency quotas](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)) — shared across **all functions in your account**, not a Vazue product ceiling. On sync `minimal`, the enroll handler holds concurrency for the full DynamoDB write path; on buffered `standard`, the enroll handler returns **202** quickly but async workers add invocations. Request a [quota increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html) in Service Quotas (support case) to go higher. Check current limit: `aws lambda get-account-settings` → `AccountLimit.ConcurrentExecutions`. **New AWS accounts** may start below 1,000 until usage ramps ([Lambda quotas](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html)).
+
 **Reference-stack enroll SLO (not a release gate):** fail &lt; 1%, POST p95 typically **~700–850ms** at 1K simultaneous unique enrolls in-region on `standard` + buffer (512 MB Lambda). Latency varies run-to-run when every VU cold-starts a new Lambda; reliability is the meaningful gate.
 
 | Concurrent unique enrolls | Preset tested | Fail rate | p95 latency | Record |
@@ -40,7 +42,7 @@ Tests use `scripts/load-test-enroll.js`: each virtual user performs one unique `
 | Visitor keys | All pollers share **one** `request_id` (worst-case hot read) | One DynamoDB item per visitor — **spread read load** |
 | Poll interval | Near-front visitor → often **2s** between polls | Back of queue → up to **30s** — **lower RPS** per poller when far from front |
 | Enroll burst | `scripts/load-test-enroll.js` (one unique enroll per VU) | Flash traffic **enrolls many new visitors** — run in-region to record; status-only tests still use one shared `request_id` |
-| AWS quotas | Default account limits (Lambda concurrency **1,000**/region, API Gateway RPS limits) | Same unless you request increases |
+| AWS quotas | Default account limits (Lambda concurrency **1,000**/Region account-wide soft quota — [request increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html); API Gateway RPS limits) | Same unless you request increases |
 
 **Summary:** Status polling behavior is realistic. The **`minimal` tests are a reasonable lower bound** for origin stress; **`standard` + CloudFront may perform better** for steady polling. **Enroll burst at 1K concurrent unique enrolls:** sync `minimal` ~0.1% fail / p95 ~1.4s; buffered `standard` **0% fail / p95 ~700–850ms** (see [`load-test-enroll-2026-08-29.md`](../launch/load-test-enroll-2026-08-29.md) and [`load-test-enroll-standard-2026-08-29.md`](../launch/load-test-enroll-standard-2026-08-29.md)) — buffer roughly halves POST latency under flash load. Global RTT is **not** fully covered. Treat 10K as validated for **concurrent pollers**, not “10K enrolls per second.”
 
@@ -77,7 +79,7 @@ Example: 10,000 pollers, 40ms requests, 2s poll → **~4,900 RPS** to origin on 
 
 ## Planning beyond 10K
 
-Without quota increases, **~100K concurrent pollers** hit throttling in our exploratory run. To go higher:
+Without quota increases, a **~100K concurrent poller** exploratory run (10 parallel load generators) hit throttling in our tests. Single-worker **10K** poller tests passed on the same default quotas. To go higher:
 
 1. Request **Lambda concurrent execution** and **API Gateway** limit increases (cost/account review).
 2. Use **`standard`** or **`full`** preset so CloudFront caches status polls.

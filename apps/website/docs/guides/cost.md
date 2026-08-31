@@ -147,6 +147,6 @@ Exact managed-service pricing depends on vendor and contract — the point is se
 
 ## Related
 
-- [Capacity planning](/docs/guides/capacity) — concurrent poller limits and load tests
+- [Capacity planning](/docs/guides/capacity) — poller vs enroll baselines, Lambda soft quotas, and load tests
 - [Presets](/docs/concepts/presets) — what each preset deploys
 - [Deploy with CDK](/docs/guides/deploy) — bootstrap and deploy steps
