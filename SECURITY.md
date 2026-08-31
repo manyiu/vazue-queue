@@ -25,8 +25,6 @@ We aim to acknowledge reports within **3 business days** and share a remediation
 - Issues that require already-compromised AWS credentials
 - Third-party dependencies without a Vazue-specific exploit path (report upstream when appropriate)
 
-Do **not** report issues in `packages/saas/` via public channels if they could expose billing secrets — use private advisory / email.
-
 ## Supported versions
 
 Security fixes target the **latest published major** on npm, plus **N−1** for at least 12 months after a new major (see SDK compatibility docs).

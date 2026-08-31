@@ -207,12 +207,6 @@ See [Presets](/docs/concepts/presets) for when to choose each.
 
 Estimate cost: `npx vazue-queue cost --visitors 100000 --minutes 60` — see [AWS cost estimate](/docs/guides/cost) for scenarios and breakdown.
 
-## Managed SaaS (optional)
-
-The same architecture runs as **managed SaaS** (`packages/saas/` — commercial, not on npm). Visitors use `{tenant}.wait.queue.vazue.com`; operators use `app.queue.vazue.com`. The technical model is identical; billing and hosting are handled by Vazue.
-
-[Open source vs managed →](/docs/introduction/oss-vs-managed)
-
 ## Related
 
 - [Visitor flow](/docs/concepts/visitor-flow) — sequence diagram of enroll → admit

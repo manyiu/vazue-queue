@@ -19,7 +19,7 @@ async fn main() {
     let state = AdminState {
         store: Arc::new(InMemoryAdminStore::new()),
         tenant_id: "default".into(),
-        capabilities: Capabilities::oss_full(),
+        capabilities: Capabilities::default(),
     };
     let app = Router::new()
         .route("/health", get(health))

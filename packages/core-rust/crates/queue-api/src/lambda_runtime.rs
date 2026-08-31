@@ -30,8 +30,6 @@ pub async fn build_aws_state() -> Result<AppState, String> {
     let store = DynamoDbStore::from_env(ddb).map_err(|e| e.to_string())?;
     let secret = load_signing_secret(&conf).await?;
     let tenant_id = std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into());
-    let profile = platform::DeploymentProfile::from_env();
-    let capabilities = deployment_capabilities(profile);
     let enroll_via_sqs = std::env::var("ENROLL_VIA_SQS").ok().as_deref() == Some("1");
     let enroll_queue_url = std::env::var("ENROLL_QUEUE_URL").ok();
     let enroll_sqs = if enroll_via_sqs && enroll_queue_url.is_some() {
@@ -44,8 +42,7 @@ pub async fn build_aws_state() -> Result<AppState, String> {
         keys: Some(Arc::new(JwtKeys::from_hmac_secret(&secret))),
         use_rsa: false,
         tenant_id,
-        profile,
-        capabilities,
+        capabilities: platform::Capabilities::default(),
         enroll_via_sqs,
         enroll_sqs,
         enroll_queue_url,
@@ -81,26 +78,17 @@ pub async fn build_enroll_state() -> Result<AppState, String> {
     let enroll_queue_url = std::env::var("ENROLL_QUEUE_URL")
         .map_err(|_| "ENROLL_QUEUE_URL required when ENROLL_VIA_SQS=1".to_string())?;
     let tenant_id = std::env::var("TENANT_ID").unwrap_or_else(|_| "default".into());
-    let profile = platform::DeploymentProfile::from_env();
     Ok(AppState {
         store: None,
         keys: None,
         use_rsa: false,
         tenant_id,
-        profile,
-        capabilities: deployment_capabilities(profile),
+        capabilities: platform::Capabilities::default(),
         enroll_via_sqs: true,
         enroll_sqs: Some(aws_sdk_sqs::Client::new(&conf)),
         enroll_queue_url: Some(enroll_queue_url),
         turnstile_secret,
     })
-}
-
-fn deployment_capabilities(profile: platform::DeploymentProfile) -> platform::Capabilities {
-    match profile {
-        platform::DeploymentProfile::Saas => platform::Capabilities::saas_free(),
-        platform::DeploymentProfile::Oss => platform::Capabilities::oss_full(),
-    }
 }
 
 fn json_response(status: u16, body: impl serde::Serialize) -> Result<Response<Body>, Error> {
@@ -225,7 +213,6 @@ async fn handle_status(state: Arc<AppState>, req: Request) -> Result<Response<Bo
             200,
             json!({
                 "status": "ready",
-                "deployment": state.profile,
                 "tenantId": state.tenant_id,
             }),
         );

@@ -15,7 +15,6 @@ pub async fn health() -> Json<Value> {
 pub async fn ready(State(state): State<AppState>) -> Json<Value> {
     Json(json!({
         "status": "ready",
-        "deployment": state.profile,
         "tenantId": state.tenant_id,
     }))
 }
@@ -39,13 +38,7 @@ pub async fn enroll(
         .enroll(&state.tenant_id, body, state.require_keys(), state.use_rsa)
         .await
     {
-        Ok(resp) => {
-            platform::emit_usage(
-                state.profile,
-                &platform::UsageEvent::enrolled(&state.tenant_id, &event_id),
-            );
-            Ok((StatusCode::CREATED, Json(resp)))
-        }
+        Ok(resp) => Ok((StatusCode::CREATED, Json(resp))),
         Err(e) => Err(map_err(e)),
     }
 }
@@ -117,4 +110,34 @@ fn map_err(e: crate::store::StoreError) -> (StatusCode, Json<Value>) {
         StoreError::Message(m) => (StatusCode::BAD_REQUEST, m),
     };
     (code, Json(json!({ "error": msg })))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    use crate::store::InMemoryStore;
+
+    fn app_state() -> AppState {
+        AppState::local(Arc::new(InMemoryStore::new()), b"local-test-secret-16b")
+    }
+
+    #[tokio::test]
+    async fn ready_returns_tenant_without_deployment() {
+        let state = app_state();
+        let Json(body) = ready(State(state)).await;
+        assert_eq!(body["status"], "ready");
+        assert_eq!(body["tenantId"], "default");
+        assert!(body.get("deployment").is_none());
+    }
+
+    #[tokio::test]
+    async fn capabilities_expose_full_oss_limits() {
+        let state = app_state();
+        let Json(body) = capabilities(State(state)).await;
+        assert_eq!(body["limits"]["max_counter_shards"], 64);
+        assert_eq!(body["limits"]["max_throughput_per_minute"], 10_000);
+        assert!(body.get("deployment").is_none());
+    }
 }

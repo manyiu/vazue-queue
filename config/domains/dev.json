@@ -4,14 +4,11 @@
   "env": "dev",
   "hosts": {
     "marketing": "dev.queue.vazue.com",
-    "admin": "app.dev.queue.vazue.com",
-    "managementApi": "api.dev.queue.vazue.com",
-    "waitTenantPattern": "{tenant}.wait.dev.queue.vazue.com",
     "docs": "docs.dev.queue.vazue.com",
     "status": "status.dev.queue.vazue.com"
   },
   "acm": {
     "cloudFrontRegion": "us-east-1",
-    "sans": ["dev.queue.vazue.com", "*.dev.queue.vazue.com", "*.wait.dev.queue.vazue.com"]
+    "sans": ["dev.queue.vazue.com", "*.dev.queue.vazue.com"]
   }
 }

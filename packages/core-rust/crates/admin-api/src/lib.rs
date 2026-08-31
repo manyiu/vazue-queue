@@ -1,4 +1,4 @@
-//! Admin / control plane API (OSS full preset + SaaS).
+//! Admin / control plane API (OSS full preset).
 
 pub mod auth;
 pub mod dynamodb_store;

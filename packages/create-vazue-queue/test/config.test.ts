@@ -27,6 +27,16 @@ describe('validateQueueCliConfig', () => {
     ).toThrow(/preset/);
   });
 
+  it('rejects removed SaaS stripe feature flag', () => {
+    expect(() =>
+      validateQueueCliConfig({
+        domainName: 'queue.example.com',
+        preset: 'standard',
+        features: { stripe: true },
+      }),
+    ).toThrow(/features\.stripe was removed/);
+  });
+
   it('rejects challenge mode without turnstileSecretArn', () => {
     expect(() =>
       validateQueueCliConfig({

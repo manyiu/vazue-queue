@@ -41,18 +41,16 @@ export class QueueControlPlane extends Construct {
           : lambda.Architecture.X86_64,
       timeout: cdk.Duration.seconds(15),
       environment: {
-        VAZUE_DEPLOYMENT_PROFILE: config.features.stripe ? 'saas' : 'oss',
         TENANT_ID: 'default',
         ROOMS_TABLE: tables.Rooms.tableName,
         EVENTS_TABLE: tables.Events.tableName,
         COUNTERS_TABLE: tables.Counters.tableName,
-        TENANTS_TABLE: tables.Tenants.tableName,
         SIGNING_SECRET_ARN: signingSecret.secretArn,
       },
     });
 
     signingSecret.grantRead(this.adminFn);
-    for (const t of [tables.Rooms, tables.Events, tables.Tenants, tables.Counters]) {
+    for (const t of [tables.Rooms, tables.Events, tables.Counters]) {
       t.grantReadWriteData(this.adminFn);
     }
 

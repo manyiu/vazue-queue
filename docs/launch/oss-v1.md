@@ -1,6 +1,6 @@
 # OSS v1.0 launch checklist
 
-Publish `@yiu/queue-cdk` **1.0.0** when this list is complete. SaaS (`packages/saas/`) is **not** part of v1.
+Publish `@yiu/queue-cdk` **1.0.0** when this list is complete.
 
 **npm scope:** v1 publishes under **`@yiu/*`** (npm user `yiu`). When the `@vazue` npm org exists, publish parallel `@vazue/*` packages and deprecate `@yiu/*` — npm does not rename scopes on transfer.
 
@@ -35,7 +35,7 @@ Only these packages (enforced by `scripts/check-publish-boundary.sh`):
 - `create-vazue-queue`
 - `@yiu/queue-sdk`
 
-`packages/saas/` and connector/frontend apps stay private. Release workflow publishes with **npm provenance** (`.github/workflows/release.yml`).
+Connector/frontend apps stay private. Release workflow publishes with **npm provenance** (`.github/workflows/release.yml`).
 
 - [x] Changeset bump to **1.0.0** + publish (`@yiu/queue-cdk`, `create-vazue-queue`, `@yiu/queue-sdk`)
 - [x] Confirm npm provenance attestations on the three packages (`1.0.1` via OIDC Release workflow)
