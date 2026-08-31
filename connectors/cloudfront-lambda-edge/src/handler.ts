@@ -8,6 +8,7 @@ import type {
 
 export interface EdgeConfig {
   waitingRoomUrl: string;
+  defaultEventId?: string;
   /** HS256 shared secret */
   jwtSecret?: string;
   cookieName?: string;
@@ -19,6 +20,7 @@ function getConfig(): EdgeConfig {
   return {
     waitingRoomUrl:
       baked.waitingRoomUrl || process.env.WAITING_ROOM_URL || 'https://queue.example.com/wait',
+    defaultEventId: baked.defaultEventId || process.env.DEFAULT_EVENT_ID || 'default',
     jwtSecret: baked.jwtSecret || process.env.JWT_HMAC_SECRET || '',
     cookieName: baked.cookieName || process.env.QUEUE_COOKIE || 'vazue_token',
     publicPaths: baked.publicPaths ?? ['/health', '/ready', '/favicon.ico'],
@@ -134,7 +136,13 @@ export function handleViewerRequest(
     return req;
   }
 
-  const dest = `${cfg.waitingRoomUrl}?returnUrl=${encodeURIComponent(`https://${req.headers.host?.[0]?.value || ''}${uri}`)}`;
+  const returnTarget = encodeURIComponent(
+    `https://${req.headers.host?.[0]?.value || ''}${uri}`,
+  );
+  const eventParam = cfg.defaultEventId
+    ? `&event=${encodeURIComponent(cfg.defaultEventId)}`
+    : '';
+  const dest = `${cfg.waitingRoomUrl}?returnUrl=${returnTarget}${eventParam}`;
   return {
     status: '302',
     statusDescription: 'Found',

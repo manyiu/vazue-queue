@@ -203,6 +203,11 @@ export class QueueDataPlane extends Construct {
       integration: new integrations.HttpLambdaIntegration('EnrollInt', this.enrollFn),
     });
     this.httpApi.addRoutes({
+      path: '/v1/rooms/{roomId}/active-event',
+      methods: [apigwv2.HttpMethod.GET],
+      integration: new integrations.HttpLambdaIntegration('ActiveEventInt', this.statusFn),
+    });
+    this.httpApi.addRoutes({
       path: '/v1/events/{eventId}/status',
       methods: [apigwv2.HttpMethod.GET],
       integration: new integrations.HttpLambdaIntegration('StatusInt', this.statusFn),

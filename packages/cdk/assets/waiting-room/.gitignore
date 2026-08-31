@@ -1,4 +1,0 @@
-# Vendored frontend assets (produced by scripts/build-waiting-room.sh / build-admin-portal.sh).
-# Intentionally empty in git; CI or publish steps populate before deploy/npm publish.
-*
-!.gitignore

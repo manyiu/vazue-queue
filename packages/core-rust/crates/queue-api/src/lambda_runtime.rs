@@ -217,6 +217,32 @@ async fn handle_status(state: Arc<AppState>, req: Request) -> Result<Response<Bo
         );
     }
 
+    if path.contains("/active-event") {
+        let room_id = path_param(&req, "roomId")
+            .or_else(|| path_param(&req, "room_id"))
+            .unwrap_or_default();
+        if room_id.is_empty() {
+            return json_response(400, json!({ "error": "roomId required" }));
+        }
+        match state
+            .require_store()
+            .active_event(&state.tenant_id, &room_id)
+            .await
+        {
+            Ok(resp) => {
+                return json_response_headers(
+                    200,
+                    resp,
+                    &[(
+                        "cache-control",
+                        "public, max-age=30, stale-while-revalidate=5",
+                    )],
+                );
+            }
+            Err(e) => return json_response(map_status(&e), json!({ "error": e.to_string() })),
+        }
+    }
+
     let event_id = path_param(&req, "eventId")
         .or_else(|| path_param(&req, "event_id"))
         .unwrap_or_default();

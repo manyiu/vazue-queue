@@ -32,6 +32,15 @@ pub struct EnrollRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActiveEventResponse {
+    pub room_id: String,
+    pub event_id: String,
+    pub return_url: Option<String>,
+    pub dress_rehearsal: bool,
+    pub paused: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnrollResponse {
     pub request_id: String,
     pub session_id: String,
@@ -71,6 +80,11 @@ pub struct EventStats {
 pub trait QueueStore: Send + Sync {
     async fn ensure_event(&self, tenant_id: &str, event: EventConfig) -> Result<(), StoreError>;
     async fn get_event(&self, tenant_id: &str, event_id: &str) -> Result<EventConfig, StoreError>;
+    async fn active_event(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+    ) -> Result<ActiveEventResponse, StoreError>;
     async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, StoreError>;
     async fn enroll(
         &self,
@@ -105,6 +119,7 @@ struct MemInner {
     session_index: HashMap<String, String>, // tenant|event|session -> request_id
     queue_counter: HashMap<String, u64>,
     serving_counter: HashMap<String, u64>,
+    active_events: HashMap<String, String>, // tenant|room -> event_id
 }
 
 pub struct InMemoryStore {
@@ -122,6 +137,25 @@ impl InMemoryStore {
 
     fn event_key(tenant_id: &str, event_id: &str) -> String {
         format!("{tenant_id}|{event_id}")
+    }
+
+    fn room_key(tenant_id: &str, room_id: &str) -> String {
+        format!("{tenant_id}|{room_id}")
+    }
+
+    pub async fn set_active_event(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+        event_id: &str,
+    ) -> Result<(), StoreError> {
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|e| StoreError::Message(e.to_string()))?;
+        g.active_events
+            .insert(Self::room_key(tenant_id, room_id), event_id.to_string());
+        Ok(())
     }
 }
 
@@ -154,6 +188,34 @@ impl QueueStore for InMemoryStore {
             .get(&Self::event_key(tenant_id, event_id))
             .cloned()
             .ok_or(StoreError::NotFound)
+    }
+
+    async fn active_event(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+    ) -> Result<ActiveEventResponse, StoreError> {
+        let g = self
+            .inner
+            .lock()
+            .map_err(|e| StoreError::Message(e.to_string()))?;
+        let event_id = g
+            .active_events
+            .get(&Self::room_key(tenant_id, room_id))
+            .cloned()
+            .ok_or(StoreError::NotFound)?;
+        let event = g
+            .events
+            .get(&Self::event_key(tenant_id, &event_id))
+            .cloned()
+            .ok_or(StoreError::NotFound)?;
+        Ok(ActiveEventResponse {
+            room_id: room_id.to_string(),
+            event_id: event.event_id.clone(),
+            return_url: event.return_url.clone(),
+            dress_rehearsal: event.dress_rehearsal,
+            paused: event.paused,
+        })
     }
 
     async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, StoreError> {

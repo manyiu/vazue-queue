@@ -193,6 +193,7 @@ mod tests {
                 token_ttl_seconds: 3600,
                 visitor_record_ttl_hours: 24,
             },
+            active_event_id: None,
         };
         let ok = create_room(State(state), Json(room)).await.unwrap();
         assert_eq!(ok.0, StatusCode::CREATED);
@@ -250,6 +251,7 @@ mod tests {
             name: "Room".into(),
             theme: json!({ "brandName": "Old" }),
             queue: QueueConfig::default(),
+            active_event_id: None,
         };
         let _ = create_room(State(state.clone()), Json(room)).await.unwrap();
         let updated = Room {
@@ -257,6 +259,7 @@ mod tests {
             name: "Room".into(),
             theme: json!({ "brandName": "New" }),
             queue: QueueConfig::default(),
+            active_event_id: None,
         };
         let ok = update_room(State(state), Path("r1".into()), Json(updated))
             .await

@@ -41,6 +41,7 @@ type RoomRow = {
   name: string;
   theme: RoomTheme;
   queue: { default_throughput_per_minute?: number };
+  active_event_id?: string;
 };
 
 type AdminRuntimeConfig = {
@@ -48,6 +49,9 @@ type AdminRuntimeConfig = {
   cognitoDomain?: string;
   cognitoClientId?: string;
   cognitoRedirectUri?: string;
+  waitingRoomUrl?: string;
+  defaultEventId?: string;
+  defaultRoomId?: string;
 };
 
 declare global {
@@ -201,9 +205,9 @@ export default function AdminHome() {
     return () => window.clearInterval(id);
   }, [token, apiBase, refresh]);
 
-  async function createEvent(roomId = rooms[0]?.room_id || 'default') {
+  async function createEvent(roomId = rooms[0]?.room_id || 'default', eventId?: string) {
     const body = {
-      event_id: `evt-${Date.now()}`,
+      event_id: eventId ?? `evt-${Date.now()}`,
       room_id: roomId,
       throughput_per_minute: throughput,
       paused: false,
@@ -242,7 +246,40 @@ export default function AdminHome() {
       setMessage(await roomRes.text());
       return;
     }
-    await createEvent('default');
+    await createEvent('default', runtimeConfig().defaultEventId ?? 'default');
+  }
+
+  function waitingRoomLink(eventId: string): string | undefined {
+    const base = runtimeConfig().waitingRoomUrl;
+    if (!base) return undefined;
+    return `${base.replace(/\/$/, '')}/?event=${encodeURIComponent(eventId)}`;
+  }
+
+  async function setActiveEvent(roomId: string, eventId: string) {
+    const room = rooms.find((r) => r.room_id === roomId);
+    if (!room) {
+      setMessage('Room not found');
+      return;
+    }
+    const res = await fetch(`${apiBase}/v1/rooms/${roomId}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        ...room,
+        active_event_id: eventId,
+        queue: {
+          default_throughput_per_minute: room.queue.default_throughput_per_minute ?? 100,
+          counter_shards: 8,
+          token_ttl_seconds: 3600,
+          visitor_record_ttl_hours: 24,
+        },
+      }),
+    });
+    if (!res.ok) setMessage(await res.text());
+    else {
+      setMessage(`Active event set to ${eventId}`);
+      await refresh();
+    }
   }
 
   async function saveRoom(room: RoomRow) {
@@ -492,6 +529,15 @@ export default function AdminHome() {
                     {s.admitted}
                   </div>
                 ) : null}
+                {rooms.some((r) => r.active_event_id === ev.event_id) ? (
+                  <div style={{ marginTop: 6, color: '#0a6', fontSize: '0.95rem' }}>Active event</div>
+                ) : null}
+                {waitingRoomLink(ev.event_id) ? (
+                  <div style={{ marginTop: 6, fontSize: '0.9rem' }}>
+                    Waiting room:{' '}
+                    <a href={waitingRoomLink(ev.event_id)}>{waitingRoomLink(ev.event_id)}</a>
+                  </div>
+                ) : null}
                 <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <label htmlFor={`throttle-${ev.event_id}`}>
                     Throttle{' '}
@@ -543,6 +589,14 @@ export default function AdminHome() {
                   <button type="button" onClick={() => void exportCsv(ev.event_id)}>
                     Export CSV
                   </button>
+                  {!rooms.some((r) => r.active_event_id === ev.event_id) ? (
+                    <button
+                      type="button"
+                      onClick={() => void setActiveEvent(ev.room_id ?? 'default', ev.event_id)}
+                    >
+                      Set active
+                    </button>
+                  ) : null}
                 </div>
               </li>
             );

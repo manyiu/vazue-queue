@@ -14,6 +14,8 @@ export type QueueCliConfig = {
     logoUrl?: string;
     accentColor?: string;
     backgroundColor?: string;
+    defaultEventId?: string;
+    defaultRoomId?: string;
   };
   origin?: { domainName?: string };
   security?: {

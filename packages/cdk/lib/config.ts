@@ -62,6 +62,10 @@ export interface VazueQueueConfig {
     backgroundColor?: string;
     locales?: string[];
     defaultLocale?: string;
+    /** Event id used by the waiting room when no ?event= query or active-event is set. */
+    defaultEventId?: string;
+    /** Room id for GET /v1/rooms/{roomId}/active-event resolution. */
+    defaultRoomId?: string;
   };
   tags?: Record<string, string>;
 }
@@ -90,8 +94,12 @@ export interface ResolvedConfig extends VazueQueueConfig {
     backgroundColor?: string;
     locales: string[];
     defaultLocale: string;
+    defaultEventId: string;
+    defaultRoomId: string;
   };
 }
+
+const EVENT_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
 export function validateConfig(raw: unknown): asserts raw is VazueQueueConfig {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -144,6 +152,19 @@ export function validateConfig(raw: unknown): asserts raw is VazueQueueConfig {
       throw new Error(
         'Invalid vazue-queue config: security.botProtection.turnstileSiteKey required when mode uses Turnstile challenges',
       );
+    }
+  }
+  const waitingRoom = cfg.waitingRoom as Record<string, unknown> | undefined;
+  if (waitingRoom) {
+    for (const key of ['defaultEventId', 'defaultRoomId'] as const) {
+      const v = waitingRoom[key];
+      if (v !== undefined) {
+        if (typeof v !== 'string' || !EVENT_ID_RE.test(v)) {
+          throw new Error(
+            `Invalid vazue-queue config: waitingRoom.${key} must match ^[a-zA-Z0-9._-]+$`,
+          );
+        }
+      }
     }
   }
 }
@@ -213,6 +234,8 @@ export function resolveConfig(input: VazueQueueConfig): ResolvedConfig {
       backgroundColor: input.waitingRoom?.backgroundColor,
       locales: input.waitingRoom?.locales ?? ['en'],
       defaultLocale: input.waitingRoom?.defaultLocale ?? 'en',
+      defaultEventId: input.waitingRoom?.defaultEventId ?? 'default',
+      defaultRoomId: input.waitingRoom?.defaultRoomId ?? 'default',
     },
   };
 }

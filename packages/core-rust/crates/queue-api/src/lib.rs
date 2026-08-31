@@ -11,6 +11,6 @@ pub mod store;
 mod test_env;
 
 pub use dynamodb_store::DynamoDbStore;
-pub use handlers::{admit, capabilities, enroll, health, ready, status};
+pub use handlers::{active_event, admit, capabilities, enroll, health, ready, status};
 pub use state::AppState;
 pub use store::{EventStats, InMemoryStore, QueueStore};

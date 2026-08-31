@@ -24,6 +24,8 @@ grep -q '/ready' openapi/vazue-queue.yaml
 grep -q 'return_url' openapi/vazue-queue.yaml
 grep -q '/v1/events/{eventId}/export' openapi/vazue-queue.yaml
 grep -q '/v1/rooms/{roomId}' openapi/vazue-queue.yaml
+grep -q '/v1/rooms/{roomId}/active-event' openapi/vazue-queue.yaml
+grep -q 'ActiveEventResponse' openapi/vazue-queue.yaml
 grep -q 'tenantId' openapi/vazue-queue.yaml
 if grep -q 'deployment:' openapi/vazue-queue.yaml; then
   echo "ERROR: openapi /ready must not document deployment profile" >&2
@@ -49,6 +51,10 @@ if grep -q 'TOKENS_TABLE' packages/cdk/lib/data-plane.ts; then
 fi
 if grep -q 'pub valkey' packages/core-rust/crates/platform/src/lib.rs; then
   echo "ERROR: platform capabilities must not expose removed valkey flag" >&2
+  exit 1
+fi
+if grep -q 'localhost:3000' packages/cdk/lib/vazue-queue.ts; then
+  echo "ERROR: waiting room config must not bake localhost API base" >&2
   exit 1
 fi
 

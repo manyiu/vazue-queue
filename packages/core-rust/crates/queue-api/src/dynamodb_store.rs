@@ -1,7 +1,8 @@
 //! DynamoDB-backed [`QueueStore`] for AWS Lambda deployments.
 
 use crate::store::{
-    EnrollRequest, EnrollResponse, EventStats, QueueStore, StatusResponse, StoreError,
+    ActiveEventResponse, EnrollRequest, EnrollResponse, EventStats, QueueStore, StatusResponse,
+    StoreError,
 };
 use async_trait::async_trait;
 use aws_sdk_dynamodb::types::AttributeValue;
@@ -20,6 +21,7 @@ pub struct DynamoDbStore {
     events_table: String,
     visitors_table: String,
     counters_table: String,
+    rooms_table: String,
     queue: QueueConfig,
 }
 
@@ -33,6 +35,8 @@ impl DynamoDbStore {
                 .map_err(|_| StoreError::Message("VISITORS_TABLE required".into()))?,
             counters_table: env::var("COUNTERS_TABLE")
                 .map_err(|_| StoreError::Message("COUNTERS_TABLE required".into()))?,
+            rooms_table: env::var("ROOMS_TABLE")
+                .map_err(|_| StoreError::Message("ROOMS_TABLE required".into()))?,
             queue: QueueConfig {
                 counter_shards: env::var("COUNTER_SHARDS")
                     .ok()
@@ -312,6 +316,32 @@ impl QueueStore for DynamoDbStore {
             .map_err(|e| StoreError::Message(e.to_string()))?;
         let item = out.item.ok_or(StoreError::NotFound)?;
         Self::event_from_item(&item)
+    }
+
+    async fn active_event(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+    ) -> Result<ActiveEventResponse, StoreError> {
+        let out = self
+            .client
+            .get_item()
+            .table_name(&self.rooms_table)
+            .key("tenantId", Self::av_s(tenant_id))
+            .key("roomId", Self::av_s(room_id))
+            .send()
+            .await
+            .map_err(|e| StoreError::Message(e.to_string()))?;
+        let item = out.item.ok_or(StoreError::NotFound)?;
+        let event_id = Self::get_s(&item, "activeEventId").ok_or(StoreError::NotFound)?;
+        let event = self.get_event(tenant_id, &event_id).await?;
+        Ok(ActiveEventResponse {
+            room_id: room_id.to_string(),
+            event_id: event.event_id.clone(),
+            return_url: event.return_url.clone(),
+            dress_rehearsal: event.dress_rehearsal,
+            paused: event.paused,
+        })
     }
 
     async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, StoreError> {

@@ -20,6 +20,9 @@ pub struct Room {
     pub name: String,
     pub theme: serde_json::Value,
     pub queue: QueueConfig,
+    /// Live event visitors join when the waiting room has no ?event= override.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_event_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -154,6 +157,17 @@ impl AdminStore for InMemoryAdminStore {
             .lock()
             .map_err(|e| AdminError::Message(e.to_string()))?;
         g.insert(Self::key(tenant_id, &event.event_id), event.clone());
+        drop(g);
+        let mut rooms = self
+            .rooms
+            .lock()
+            .map_err(|e| AdminError::Message(e.to_string()))?;
+        let room_key = Self::key(tenant_id, &event.room_id);
+        if let Some(room) = rooms.get_mut(&room_key) {
+            if room.active_event_id.as_deref().unwrap_or("").is_empty() {
+                room.active_event_id = Some(event.event_id.clone());
+            }
+        }
         Ok(event)
     }
 

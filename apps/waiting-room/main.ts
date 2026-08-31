@@ -21,7 +21,15 @@ type StatusResponse = {
   dress_rehearsal?: boolean;
 };
 
-type RoomTheme = {
+type ActiveEventResponse = {
+  room_id: string;
+  event_id: string;
+  return_url?: string;
+  dress_rehearsal?: boolean;
+  paused?: boolean;
+};
+
+type VazueRuntimeConfig = {
   brandName?: string;
   message?: string;
   logoUrl?: string;
@@ -29,11 +37,14 @@ type RoomTheme = {
   background?: string;
   turnstileSiteKey?: string;
   botMode?: string;
+  defaultEventId?: string;
+  defaultRoomId?: string;
+  apiBase?: string;
 };
 
 declare global {
   interface Window {
-    __VAZUE_CONFIG__?: RoomTheme;
+    __VAZUE_CONFIG__?: VazueRuntimeConfig;
     turnstile?: {
       render: (
         el: string | HTMLElement,
@@ -41,6 +52,11 @@ declare global {
       ) => string;
     };
   }
+}
+
+function isLocalDev(): boolean {
+  const host = location.hostname;
+  return host === 'localhost' || host === '127.0.0.1';
 }
 
 function getCookie(name: string): string | undefined {
@@ -72,22 +88,65 @@ function writeSharedState(state: { session_id: string; request_id: string }) {
   }
 }
 
-function apiBase(): string {
-  const params = new URLSearchParams(location.search);
-  return params.get('api') ?? (import.meta as any).env?.VITE_QUEUE_API ?? 'http://localhost:3000';
+function runtimeConfig(): VazueRuntimeConfig {
+  return window.__VAZUE_CONFIG__ ?? {};
 }
 
-function eventId(): string {
-  return new URLSearchParams(location.search).get('event') ?? 'demo';
+function apiBase(): string {
+  const params = new URLSearchParams(location.search);
+  const fromQuery = params.get('api');
+  if (fromQuery !== null) return fromQuery;
+  const fromConfig = runtimeConfig().apiBase;
+  if (fromConfig !== undefined) return fromConfig;
+  const fromVite = (import.meta as any).env?.VITE_QUEUE_API;
+  if (fromVite) return fromVite;
+  return isLocalDev() ? 'http://localhost:3000' : '';
+}
+
+function roomId(): string {
+  return new URLSearchParams(location.search).get('room') ?? runtimeConfig().defaultRoomId ?? 'default';
+}
+
+function configuredEventId(): string | undefined {
+  const fromConfig = runtimeConfig().defaultEventId;
+  if (fromConfig) return fromConfig;
+  return isLocalDev() ? 'demo' : undefined;
+}
+
+function eventFromQuery(): string | undefined {
+  return new URLSearchParams(location.search).get('event') ?? undefined;
+}
+
+async function fetchActiveEvent(base: string, room: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(`${base}/v1/rooms/${encodeURIComponent(room)}/active-event`);
+    if (!res.ok) return undefined;
+    const body = (await res.json()) as ActiveEventResponse;
+    return body.event_id || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function resolveEventId(base: string): Promise<string> {
+  const explicit = eventFromQuery();
+  if (explicit) return explicit;
+  const active = await fetchActiveEvent(base, roomId());
+  if (active) return active;
+  const configured = configuredEventId();
+  if (configured) return configured;
+  throw new Error(
+    'No queue event configured. Create an event in the admin portal or open this page with ?event=your-event-id.',
+  );
 }
 
 function returnUrl(): string | undefined {
   return new URLSearchParams(location.search).get('returnUrl') ?? undefined;
 }
 
-function roomConfig(): RoomTheme {
+function roomTheme(): VazueRuntimeConfig {
   const params = new URLSearchParams(location.search);
-  const fromWindow = window.__VAZUE_CONFIG__ ?? {};
+  const fromWindow = runtimeConfig();
   return {
     brandName: params.get('brand') ?? fromWindow.brandName ?? 'Vazue Queue',
     message:
@@ -105,7 +164,7 @@ function roomConfig(): RoomTheme {
   };
 }
 
-function applyTheme(cfg: RoomTheme) {
+function applyTheme(cfg: VazueRuntimeConfig) {
   const brand = document.getElementById('brand');
   const message = document.getElementById('message');
   if (brand) brand.textContent = cfg.brandName ?? 'Vazue Queue';
@@ -121,7 +180,7 @@ function applyTheme(cfg: RoomTheme) {
   }
 }
 
-function needsTurnstile(cfg: RoomTheme): boolean {
+function needsTurnstile(cfg: VazueRuntimeConfig): boolean {
   const mode = cfg.botMode ?? 'off';
   return (
     Boolean(cfg.turnstileSiteKey) &&
@@ -161,6 +220,28 @@ async function obtainTurnstileToken(siteKey: string): Promise<string> {
   });
 }
 
+function formatApiError(status: number, body: string, event: string): string {
+  let message = body;
+  try {
+    const parsed = JSON.parse(body) as { error?: string };
+    if (parsed.error) message = parsed.error;
+  } catch {
+    /* use raw body */
+  }
+  if (status === 404) {
+    return `Queue event "${event}" was not found. Create it in the admin portal or check ?event=.`;
+  }
+  if (status === 409) {
+    return message.includes('paused')
+      ? 'The queue is paused. Please wait for the operator to reopen it.'
+      : message;
+  }
+  if (status === 0 || message.toLowerCase().includes('failed to fetch')) {
+    return 'Cannot reach the queue API. Confirm the stack is deployed and this page is served from the waiting room CloudFront URL.';
+  }
+  return message || `Request failed (${status})`;
+}
+
 async function enroll(
   base: string,
   event: string,
@@ -168,24 +249,30 @@ async function enroll(
 ): Promise<EnrollResponse> {
   const shared = readSharedState();
   const session = getCookie(COOKIE) ?? shared.session_id;
-  const res = await fetch(`${base}/v1/events/${event}/enroll`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      session_id: session,
-      return_url: returnUrl(),
-      turnstile_token: turnstileToken,
-    }),
-  });
-  // 201 sync · 202 async SQS buffer (same EnrollResponse shape)
-  if (res.status !== 201 && res.status !== 202) throw new Error(await res.text());
+  let res: Response;
+  try {
+    res = await fetch(`${base}/v1/events/${encodeURIComponent(event)}/enroll`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        session_id: session,
+        return_url: returnUrl(),
+        turnstile_token: turnstileToken,
+      }),
+    });
+  } catch {
+    throw new Error(formatApiError(0, 'Failed to fetch', event));
+  }
+  if (res.status !== 201 && res.status !== 202) {
+    throw new Error(formatApiError(res.status, await res.text(), event));
+  }
   const body = (await res.json()) as EnrollResponse;
   if (body.session_id) setCookie(COOKIE, body.session_id);
   return body;
 }
 
 async function status(base: string, event: string, requestId: string): Promise<StatusResponse> {
-  const url = new URL(`${base}/v1/events/${event}/status`);
+  const url = new URL(`${base}/v1/events/${encodeURIComponent(event)}/status`, location.origin);
   url.searchParams.set('request_id', requestId);
   const res = await fetch(url);
   if (res.status === 404) {
@@ -199,7 +286,7 @@ async function status(base: string, event: string, requestId: string): Promise<S
       admitted: false,
     };
   }
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(formatApiError(res.status, await res.text(), event));
   return res.json();
 }
 
@@ -218,13 +305,13 @@ function render(s: StatusResponse) {
 }
 
 async function main() {
-  const cfg = roomConfig();
+  const cfg = roomTheme();
   applyTheme(cfg);
   const base = apiBase();
-  const event = eventId();
   const el = document.getElementById('status')!;
 
   try {
+    const event = await resolveEventId(base);
     const shared = readSharedState();
     let requestId = shared.request_id;
     if (!requestId) {

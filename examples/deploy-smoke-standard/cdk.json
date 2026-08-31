@@ -9,6 +9,10 @@
         "removalPolicy": "destroy",
         "botProtection": { "mode": "off" }
       },
+      "waitingRoom": {
+        "defaultEventId": "deploy-smoke",
+        "defaultRoomId": "default"
+      },
       "tags": {
         "purpose": "deploy-smoke-standard"
       }

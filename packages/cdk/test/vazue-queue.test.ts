@@ -258,6 +258,8 @@ describe('config', () => {
     expect(cfg.security.botProtection.mode).toBe('off');
     expect(cfg.queue.counterShards).toBe(8);
     expect(cfg.waitingRoom.brandName).toBe('Vazue Queue');
+    expect(cfg.waitingRoom.defaultEventId).toBe('default');
+    expect(cfg.waitingRoom.defaultRoomId).toBe('default');
   });
 
   it('merges overlays', () => {
