@@ -5,7 +5,6 @@
 /packages/cdk/            @vazue/infra
 /packages/sdk-typescript/ @vazue/sdk
 /packages/create-vazue-queue/ @vazue/infra
-/packages/saas/           @vazue/saas
 /apps/                    @vazue/frontend
 /openapi/                 @vazue/backend @vazue/sdk
 /.github/                 @vazue/infra

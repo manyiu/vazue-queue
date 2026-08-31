@@ -17,7 +17,6 @@ type EnrollRequest struct {
 	RequestID      string `json:"request_id,omitempty"`
 	SessionID      string `json:"session_id,omitempty"`
 	ReturnURL      string `json:"return_url,omitempty"`
-	InviteCode     string `json:"invite_code,omitempty"`
 	TurnstileToken string `json:"turnstile_token,omitempty"`
 }
 

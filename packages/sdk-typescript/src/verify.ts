@@ -8,7 +8,6 @@ export type AdmitTokenClaims = {
   request_id?: string;
   return_url?: string;
   exp?: number;
-  dress_rehearsal?: boolean;
   [key: string]: unknown;
 };
 

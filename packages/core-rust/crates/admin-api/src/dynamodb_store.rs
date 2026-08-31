@@ -101,7 +101,6 @@ impl DynamoDbAdminStore {
             throughput_per_minute: Self::get_n_u32(item, "throughputPerMinute").unwrap_or(100),
             paused: Self::get_bool(item, "paused"),
             emergency_open: Self::get_bool(item, "emergencyOpen"),
-            invite_only: Self::get_bool(item, "inviteOnly"),
             dress_rehearsal: Self::get_bool(item, "dressRehearsal"),
             bot_protection: Self::bot_from(
                 &Self::get_s(item, "botProtection").unwrap_or_else(|| "off".into()),
@@ -126,6 +125,7 @@ impl DynamoDbAdminStore {
             name: Self::get_s(item, "name").unwrap_or_default(),
             theme,
             queue,
+            active_event_id: Self::get_s(item, "activeEventId"),
         })
     }
 }
@@ -139,28 +139,34 @@ impl AdminStore for DynamoDbAdminStore {
         self.client
             .put_item()
             .table_name(&self.rooms_table)
-            .set_item(Some(HashMap::from([
-                ("tenantId".into(), Self::s(tenant_id)),
-                ("roomId".into(), Self::s(&room.room_id)),
-                ("name".into(), Self::s(&room.name)),
-                (
-                    "themeJson".into(),
-                    Self::s(serde_json::to_string(&room.theme).unwrap_or_else(|_| "{}".into())),
-                ),
-                (
-                    "defaultThroughput".into(),
-                    Self::n(room.queue.default_throughput_per_minute),
-                ),
-                ("counterShards".into(), Self::n(room.queue.counter_shards)),
-                (
-                    "tokenTtlSeconds".into(),
-                    Self::n(room.queue.token_ttl_seconds),
-                ),
-                (
-                    "visitorTtlHours".into(),
-                    Self::n(room.queue.visitor_record_ttl_hours),
-                ),
-            ])))
+            .set_item(Some({
+                let mut item = HashMap::from([
+                    ("tenantId".into(), Self::s(tenant_id)),
+                    ("roomId".into(), Self::s(&room.room_id)),
+                    ("name".into(), Self::s(&room.name)),
+                    (
+                        "themeJson".into(),
+                        Self::s(serde_json::to_string(&room.theme).unwrap_or_else(|_| "{}".into())),
+                    ),
+                    (
+                        "defaultThroughput".into(),
+                        Self::n(room.queue.default_throughput_per_minute),
+                    ),
+                    ("counterShards".into(), Self::n(room.queue.counter_shards)),
+                    (
+                        "tokenTtlSeconds".into(),
+                        Self::n(room.queue.token_ttl_seconds),
+                    ),
+                    (
+                        "visitorTtlHours".into(),
+                        Self::n(room.queue.visitor_record_ttl_hours),
+                    ),
+                ]);
+                if let Some(id) = &room.active_event_id {
+                    item.insert("activeEventId".into(), Self::s(id));
+                }
+                item
+            }))
             .send()
             .await
             .map_err(|e| AdminError::Message(e.to_string()))?;
@@ -230,7 +236,6 @@ impl AdminStore for DynamoDbAdminStore {
                 "emergencyOpen".into(),
                 AttributeValue::Bool(event.emergency_open),
             ),
-            ("inviteOnly".into(), AttributeValue::Bool(event.invite_only)),
             (
                 "dressRehearsal".into(),
                 AttributeValue::Bool(event.dress_rehearsal),
@@ -250,6 +255,14 @@ impl AdminStore for DynamoDbAdminStore {
             .send()
             .await
             .map_err(|e| AdminError::Message(e.to_string()))?;
+
+        if let Ok(mut room) = self.get_room(tenant_id, &event.room_id).await {
+            if room.active_event_id.as_deref().unwrap_or("").is_empty() {
+                room.active_event_id = Some(event.event_id.clone());
+                self.create_room(tenant_id, room).await?;
+            }
+        }
+
         Ok(event)
     }
 
@@ -294,10 +307,6 @@ impl AdminStore for DynamoDbAdminStore {
         if let Some(v) = overrides.bot_protection {
             parts.push("botProtection = :b");
             values.insert(":b".into(), Self::s(Self::bot_to(v)));
-        }
-        if let Some(v) = overrides.invite_only {
-            parts.push("inviteOnly = :i");
-            values.insert(":i".into(), AttributeValue::Bool(v));
         }
         if let Some(v) = overrides.dress_rehearsal {
             parts.push("dressRehearsal = :d");

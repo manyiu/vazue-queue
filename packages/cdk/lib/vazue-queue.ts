@@ -138,6 +138,9 @@ export class VazueQueue extends Construct {
         background: config.waitingRoom.backgroundColor,
         turnstileSiteKey: config.security.botProtection.turnstileSiteKey,
         botMode: config.security.botProtection.mode,
+        defaultEventId: config.waitingRoom.defaultEventId,
+        defaultRoomId: config.waitingRoom.defaultRoomId,
+        apiBase: '',
       };
       const configJs = `window.__VAZUE_CONFIG__=${JSON.stringify(roomCfg)};`;
       if (waitingRoomDist) {
@@ -169,10 +172,15 @@ export class VazueQueue extends Construct {
       new cdk.CfnOutput(this, 'WaitingRoomUrl', {
         value: `https://${this.distribution.distributionDomainName}`,
       });
+      new cdk.CfnOutput(this, 'WaitingRoomLiveUrl', {
+        value: `https://${this.distribution.distributionDomainName}/?event=${config.waitingRoom.defaultEventId}`,
+        description: 'Waiting room with explicit default event (also resolved via active-event API)',
+      });
 
       if (config.features.edgeConnector) {
         this.edgeProtect = new QueueEdgeProtect(this, 'EdgeProtect', {
           waitingRoomUrl: `https://${config.domainName}`,
+          defaultEventId: config.waitingRoom.defaultEventId,
           jwtHmacSecret: config.security.jwtHmacSecret,
           cookieName: 'vazue_token',
           originDomainName: config.origin?.domainName,
@@ -272,6 +280,11 @@ export class VazueQueue extends Construct {
           cognitoDomain: `${userPoolDomain.domainName}.auth.${cdk.Stack.of(this).region}.amazoncognito.com`,
           cognitoClientId: this.userPoolClient.userPoolClientId,
           cognitoRedirectUri: adminPortalUrl,
+          waitingRoomUrl: config.features.waitingRoom
+            ? `https://${config.domainName}`
+            : undefined,
+          defaultEventId: config.waitingRoom.defaultEventId,
+          defaultRoomId: config.waitingRoom.defaultRoomId,
         };
         const runtimeCfg = `window.__VAZUE_ADMIN_CONFIG__=${JSON.stringify(adminCfg)};`;
         const sources = [s3deploy.Source.data('config.js', runtimeCfg)];

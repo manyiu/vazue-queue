@@ -61,6 +61,7 @@ describe('edge connector', () => {
     const secret = 'edge-secret';
     const cfg = {
       waitingRoomUrl: 'https://queue.example.com',
+      defaultEventId: 'default',
       jwtSecret: secret,
       cookieName: 'vazue_token',
       publicPaths: ['/health', '/ready', '/favicon.ico'],
@@ -72,6 +73,9 @@ describe('edge connector', () => {
     expect(blocked).toMatchObject({ status: '302' });
     expect((blocked as { headers: { location: { value: string }[] } }).headers.location[0].value).toContain(
       'returnUrl=',
+    );
+    expect((blocked as { headers: { location: { value: string }[] } }).headers.location[0].value).toContain(
+      'event=default',
     );
 
     const token = signHs256Jwt({ sub: 'v1', exp: Math.floor(Date.now() / 1000) + 600 }, secret);

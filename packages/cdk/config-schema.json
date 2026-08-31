@@ -78,7 +78,6 @@
             "turnstileSiteKey": { "type": "string" },
             "turnstileSecretArn": { "type": "string" },
             "enrollMaxPerIpPerHour": { "type": "integer", "minimum": 0 },
-            "inviteOnly": { "type": "boolean" },
             "wafBotControl": { "type": "boolean" },
             "honeypot": { "type": "boolean" }
           }
@@ -126,7 +125,17 @@
           "type": "array",
           "items": { "type": "string" }
         },
-        "defaultLocale": { "type": "string" }
+        "defaultLocale": { "type": "string" },
+        "defaultEventId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+$",
+          "description": "Default queue event id for the waiting room SPA"
+        },
+        "defaultRoomId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+$",
+          "description": "Room id for runtime active-event lookup"
+        }
       }
     }
   }

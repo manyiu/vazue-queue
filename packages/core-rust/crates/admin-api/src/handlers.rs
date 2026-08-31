@@ -172,7 +172,6 @@ mod tests {
             throughput_per_minute: 5000,
             paused: false,
             emergency_open: false,
-            invite_only: false,
             dress_rehearsal: false,
             bot_protection: BotProtectionMode::Off,
             return_url: None,
@@ -194,6 +193,7 @@ mod tests {
                 token_ttl_seconds: 3600,
                 visitor_record_ttl_hours: 24,
             },
+            active_event_id: None,
         };
         let ok = create_room(State(state), Json(room)).await.unwrap();
         assert_eq!(ok.0, StatusCode::CREATED);
@@ -207,6 +207,31 @@ mod tests {
         assert_eq!(body["limits"]["max_counter_shards"], 64);
         assert_eq!(body["limits"]["max_throughput_per_minute"], 10_000);
         assert!(body.get("deployment").is_none());
+        assert!(body["features"].get("valkey").is_none());
+    }
+
+    #[tokio::test]
+    async fn live_overrides_ignore_removed_invite_only() {
+        let state = admin_state();
+        let event = EventConfig {
+            event_id: "e1".into(),
+            room_id: "r1".into(),
+            throughput_per_minute: 50,
+            paused: false,
+            emergency_open: false,
+            dress_rehearsal: false,
+            bot_protection: BotProtectionMode::Off,
+            return_url: None,
+        };
+        let _ = create_event(State(state.clone()), Json(event))
+            .await
+            .unwrap();
+        let overrides: LiveOverrides =
+            serde_json::from_value(json!({ "invite_only": true })).unwrap();
+        let updated = update_event(State(state), Path("e1".into()), Json(overrides))
+            .await
+            .unwrap();
+        assert!(!updated.0.paused);
     }
 
     #[tokio::test]
@@ -226,6 +251,7 @@ mod tests {
             name: "Room".into(),
             theme: json!({ "brandName": "Old" }),
             queue: QueueConfig::default(),
+            active_event_id: None,
         };
         let _ = create_room(State(state.clone()), Json(room)).await.unwrap();
         let updated = Room {
@@ -233,6 +259,7 @@ mod tests {
             name: "Room".into(),
             theme: json!({ "brandName": "New" }),
             queue: QueueConfig::default(),
+            active_event_id: None,
         };
         let ok = update_room(State(state), Path("r1".into()), Json(updated))
             .await
@@ -249,7 +276,6 @@ mod tests {
             throughput_per_minute: 50,
             paused: false,
             emergency_open: false,
-            invite_only: false,
             dress_rehearsal: true,
             bot_protection: BotProtectionMode::Off,
             return_url: None,

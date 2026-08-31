@@ -90,4 +90,13 @@ describe('verifyAdmitToken', () => {
     expect(extractAdmitToken({ cookieHeader: 'a=1; vazue_token=abc; b=2' })).toBe('abc');
     expect(extractAdmitToken({ query: new URLSearchParams('vazue_token=xyz') })).toBe('xyz');
   });
+
+  it('does not require dress_rehearsal claim in admit JWT', () => {
+    const secret = 'origin-secret-16chars';
+    const now = 1_700_000_000;
+    const good = signHs256({ sub: 'req-1', exp: now + 60, event_id: 'demo' }, secret);
+    const claims = verifyAdmitToken(good, secret, now);
+    expect(claims).not.toBeNull();
+    expect(claims).not.toHaveProperty('dress_rehearsal');
+  });
 });

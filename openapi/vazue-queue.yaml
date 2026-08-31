@@ -80,7 +80,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EnrollResponse'
         '409':
-          description: Conflict (paused, captcha, invite)
+          description: Conflict (paused, captcha)
   /v1/events/{eventId}/status:
     get:
       operationId: status
@@ -130,6 +130,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StatusResponse'
+  /v1/rooms/{roomId}/active-event:
+    get:
+      operationId: getActiveEvent
+      tags: [Queue]
+      description: |
+        Public lookup of the room's live queue event for the waiting room SPA.
+        Returns 404 when the room has no active event configured.
+      parameters:
+        - name: roomId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Active event for the room
+          headers:
+            Cache-Control:
+              schema: { type: string }
+              description: public, max-age=30, stale-while-revalidate=5
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveEventResponse'
+        '404':
+          description: Room or active event not found
   /v1/rooms:
     get:
       operationId: listRooms
@@ -246,8 +271,6 @@ components:
           description: |
             Destination after admit. Waiting room redirects to this URL and appends vazue_token.
             If omitted, the event's return_url is stored. Owners must preserve this deep link.
-        invite_code:
-          type: string
         turnstile_token:
           type: string
     EnrollResponse:
@@ -258,6 +281,15 @@ components:
         session_id: { type: string }
         position: { type: integer }
         status: { $ref: '#/components/schemas/VisitorStatus' }
+    ActiveEventResponse:
+      type: object
+      required: [room_id, event_id]
+      properties:
+        room_id: { type: string }
+        event_id: { type: string }
+        return_url: { type: string, format: uri }
+        dress_rehearsal: { type: boolean }
+        paused: { type: boolean }
     StatusResponse:
       type: object
       required: [request_id, position, serving, status, admitted]
@@ -287,6 +319,7 @@ components:
         room_id: { type: string }
         name: { type: string }
         theme: { type: object, additionalProperties: true }
+        active_event_id: { type: string }
         queue:
           type: object
           properties:
@@ -303,7 +336,6 @@ components:
         throughput_per_minute: { type: integer }
         paused: { type: boolean }
         emergency_open: { type: boolean }
-        invite_only: { type: boolean }
         dress_rehearsal:
           type: boolean
           description: Practice mode — queue runs normally; origins should reject admit tokens for real sales.
@@ -317,7 +349,6 @@ components:
         paused: { type: boolean }
         emergency_open: { type: boolean }
         throughput_per_minute: { type: integer }
-        invite_only: { type: boolean }
         dress_rehearsal: { type: boolean }
         bot_protection:
           type: string

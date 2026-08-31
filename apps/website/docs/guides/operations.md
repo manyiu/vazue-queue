@@ -64,7 +64,7 @@ curl https://your-queue-api/health
 curl https://your-queue-api/ready
 ```
 
-`ready` returns `deployment` profile and `tenantId`.
+`ready` returns `tenantId`.
 
 ## Load testing
 

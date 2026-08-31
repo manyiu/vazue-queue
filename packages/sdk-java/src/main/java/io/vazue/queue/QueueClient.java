@@ -86,8 +86,6 @@ public final class QueueClient {
     public String sessionId;
     @JsonProperty("return_url")
     public String returnUrl;
-    @JsonProperty("invite_code")
-    public String inviteCode;
     @JsonProperty("turnstile_token")
     public String turnstileToken;
   }

@@ -15,7 +15,8 @@ use axum::routing::{get, post, put};
 use axum::Router;
 use platform::Capabilities;
 use queue_api::{
-    admit, capabilities, enroll, health, ready, status, AppState, InMemoryStore, QueueStore,
+    active_event, admit, capabilities, enroll, health, ready, status, AppState, InMemoryStore,
+    QueueStore,
 };
 use queue_kernel::EventConfig;
 use tower_http::cors::CorsLayer;
@@ -48,7 +49,14 @@ impl AdminStore for BridgedAdminStore {
         room_id: &str,
         room: Room,
     ) -> Result<Room, AdminError> {
-        self.admin.update_room(tenant_id, room_id, room).await
+        let updated = self.admin.update_room(tenant_id, room_id, room).await?;
+        if let Some(active) = &updated.active_event_id {
+            self.queue
+                .set_active_event(tenant_id, room_id, active)
+                .await
+                .map_err(|e| AdminError::Message(e.to_string()))?;
+        }
+        Ok(updated)
     }
 
     async fn create_event(
@@ -61,6 +69,14 @@ impl AdminStore for BridgedAdminStore {
             .ensure_event(tenant_id, created.clone())
             .await
             .map_err(|e| AdminError::Message(e.to_string()))?;
+        if let Ok(room) = self.admin.get_room(tenant_id, &created.room_id).await {
+            if let Some(active) = &room.active_event_id {
+                self.queue
+                    .set_active_event(tenant_id, &created.room_id, active)
+                    .await
+                    .map_err(|e| AdminError::Message(e.to_string()))?;
+            }
+        }
         Ok(created)
     }
 
@@ -125,7 +141,6 @@ async fn main() {
         throughput_per_minute: 100,
         paused: false,
         emergency_open: false,
-        invite_only: false,
         dress_rehearsal: false,
         bot_protection: queue_kernel::BotProtectionMode::Off,
         return_url: Some("https://example.com/checkout".into()),
@@ -150,10 +165,14 @@ async fn main() {
                     "message": "You're in line. Please keep this tab open."
                 }),
                 queue: queue_kernel::QueueConfig::default(),
+                active_event_id: None,
             },
         )
         .await;
     let _ = admin_store.create_event("default", demo).await;
+    let _ = queue_store
+        .set_active_event("default", "default", "demo")
+        .await;
 
     let queue_state = AppState::local(queue_store, b"local-dev-hmac-secret-change-me");
     let admin_state = AdminState {
@@ -166,6 +185,7 @@ async fn main() {
         .route("/health", get(health))
         .route("/ready", get(ready))
         .route("/v1/capabilities", get(capabilities))
+        .route("/v1/rooms/{room_id}/active-event", get(active_event))
         .route("/v1/events/{event_id}/enroll", post(enroll))
         .route("/v1/events/{event_id}/status", get(status))
         .route("/v1/events/{event_id}/admit", post(admit))

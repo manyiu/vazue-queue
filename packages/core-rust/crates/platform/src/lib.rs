@@ -31,7 +31,6 @@ impl Default for PlanLimits {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureFlags {
-    pub valkey: bool,
     pub edge_connector: bool,
     pub bot_protection: bool,
     pub analytics: bool,
@@ -40,7 +39,6 @@ pub struct FeatureFlags {
 impl Default for FeatureFlags {
     fn default() -> Self {
         Self {
-            valkey: true,
             edge_connector: true,
             bot_protection: true,
             analytics: true,
@@ -67,5 +65,12 @@ mod tests {
         assert!(value.get("limits").is_some());
         assert!(value.get("features").is_some());
         assert!(value.get("deployment").is_none());
+    }
+
+    #[test]
+    fn capabilities_features_exclude_removed_saas_fields() {
+        let features = serde_json::to_value(FeatureFlags::default()).unwrap();
+        assert!(features.get("valkey").is_none());
+        assert!(features.get("stripe").is_none());
     }
 }

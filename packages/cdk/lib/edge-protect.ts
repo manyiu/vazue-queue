@@ -11,6 +11,8 @@ import { tmpdir } from 'node:os';
 export interface QueueEdgeProtectProps {
   /** Waiting room URL visitors are redirected to when admit cookie is missing/invalid. */
   waitingRoomUrl: string;
+  /** Default queue event appended to the waiting room redirect. */
+  defaultEventId?: string;
   /**
    * HS256 secret baked into the edge bundle (Lambda@Edge viewer-request cannot use env vars
    * or a multi-MB AWS SDK). Must match the data-plane signing secret.
@@ -67,6 +69,7 @@ export class QueueEdgeProtect extends Construct {
       join(staged, 'edge-config.js'),
       `module.exports = ${JSON.stringify({
         waitingRoomUrl: props.waitingRoomUrl,
+        defaultEventId: props.defaultEventId ?? 'default',
         jwtSecret: props.jwtHmacSecret ?? '',
         cookieName: props.cookieName ?? 'vazue_token',
         publicPaths: props.publicPaths ?? ['/health', '/ready', '/favicon.ico'],

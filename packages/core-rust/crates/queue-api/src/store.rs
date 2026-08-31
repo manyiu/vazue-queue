@@ -28,8 +28,16 @@ pub struct EnrollRequest {
     pub request_id: Option<String>,
     pub session_id: Option<String>,
     pub return_url: Option<String>,
-    pub invite_code: Option<String>,
     pub turnstile_token: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActiveEventResponse {
+    pub room_id: String,
+    pub event_id: String,
+    pub return_url: Option<String>,
+    pub dress_rehearsal: bool,
+    pub paused: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,6 +80,11 @@ pub struct EventStats {
 pub trait QueueStore: Send + Sync {
     async fn ensure_event(&self, tenant_id: &str, event: EventConfig) -> Result<(), StoreError>;
     async fn get_event(&self, tenant_id: &str, event_id: &str) -> Result<EventConfig, StoreError>;
+    async fn active_event(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+    ) -> Result<ActiveEventResponse, StoreError>;
     async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, StoreError>;
     async fn enroll(
         &self,
@@ -106,7 +119,7 @@ struct MemInner {
     session_index: HashMap<String, String>, // tenant|event|session -> request_id
     queue_counter: HashMap<String, u64>,
     serving_counter: HashMap<String, u64>,
-    invites: HashMap<String, bool>,
+    active_events: HashMap<String, String>, // tenant|room -> event_id
 }
 
 pub struct InMemoryStore {
@@ -124,6 +137,25 @@ impl InMemoryStore {
 
     fn event_key(tenant_id: &str, event_id: &str) -> String {
         format!("{tenant_id}|{event_id}")
+    }
+
+    fn room_key(tenant_id: &str, room_id: &str) -> String {
+        format!("{tenant_id}|{room_id}")
+    }
+
+    pub async fn set_active_event(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+        event_id: &str,
+    ) -> Result<(), StoreError> {
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|e| StoreError::Message(e.to_string()))?;
+        g.active_events
+            .insert(Self::room_key(tenant_id, room_id), event_id.to_string());
+        Ok(())
     }
 }
 
@@ -158,6 +190,34 @@ impl QueueStore for InMemoryStore {
             .ok_or(StoreError::NotFound)
     }
 
+    async fn active_event(
+        &self,
+        tenant_id: &str,
+        room_id: &str,
+    ) -> Result<ActiveEventResponse, StoreError> {
+        let g = self
+            .inner
+            .lock()
+            .map_err(|e| StoreError::Message(e.to_string()))?;
+        let event_id = g
+            .active_events
+            .get(&Self::room_key(tenant_id, room_id))
+            .cloned()
+            .ok_or(StoreError::NotFound)?;
+        let event = g
+            .events
+            .get(&Self::event_key(tenant_id, &event_id))
+            .cloned()
+            .ok_or(StoreError::NotFound)?;
+        Ok(ActiveEventResponse {
+            room_id: room_id.to_string(),
+            event_id: event.event_id.clone(),
+            return_url: event.return_url.clone(),
+            dress_rehearsal: event.dress_rehearsal,
+            paused: event.paused,
+        })
+    }
+
     async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, StoreError> {
         let g = self
             .inner
@@ -170,7 +230,7 @@ impl QueueStore for InMemoryStore {
         let mut waiting = 0u64;
         let mut admitted = 0u64;
         for v in g.visitors.values() {
-            if v.tenant_id == tenant_id && v.event_id == event_id {
+            if v.event_id == event_id {
                 match v.status {
                     VisitorStatus::Waiting | VisitorStatus::Enrolled => waiting += 1,
                     VisitorStatus::Admitted => admitted += 1,
@@ -209,19 +269,6 @@ impl QueueStore for InMemoryStore {
             return Err(StoreError::Conflict("queue paused".into()));
         }
 
-        if event.invite_only {
-            let code = req.invite_code.as_deref().unwrap_or("");
-            if code.is_empty()
-                || !g
-                    .invites
-                    .get(&format!("{ek}|{code}"))
-                    .copied()
-                    .unwrap_or(false)
-            {
-                return Err(StoreError::Conflict("invite required".into()));
-            }
-        }
-
         if matches!(event.bot_protection, BotProtectionMode::ChallengeAlways)
             && req.turnstile_token.as_deref().unwrap_or("").is_empty()
         {
@@ -254,7 +301,6 @@ impl QueueStore for InMemoryStore {
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| Uuid::new_v4().to_string());
         let record = VisitorRecord {
-            tenant_id: tenant_id.to_string(),
             event_id: req.event_id.clone(),
             request_id: request_id.clone(),
             session_id: session_id.clone(),
@@ -311,8 +357,7 @@ impl QueueStore for InMemoryStore {
         let serving = *g.serving_counter.get(&ek).unwrap_or(&0);
         let mut abandoned = 0u64;
         for v in g.visitors.values_mut() {
-            if v.tenant_id == tenant_id
-                && v.event_id == event_id
+            if v.event_id == event_id
                 && matches!(v.status, VisitorStatus::Waiting)
                 && now - v.enrolled_at > ttl
             {
@@ -396,12 +441,6 @@ impl InMemoryStore {
             dress_rehearsal: event.dress_rehearsal,
         })
     }
-
-    pub fn add_invite(&self, tenant_id: &str, event_id: &str, code: &str) {
-        let mut g = self.inner.lock().unwrap();
-        let key = format!("{}|{code}", Self::event_key(tenant_id, event_id));
-        g.invites.insert(key, true);
-    }
 }
 
 #[cfg(test)]
@@ -422,7 +461,6 @@ mod tests {
                     throughput_per_minute: 60,
                     paused: false,
                     emergency_open: true,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: Some("https://example.com".into()),
@@ -439,7 +477,6 @@ mod tests {
                     request_id: None,
                     session_id: Some("s1".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -470,7 +507,6 @@ mod tests {
                     throughput_per_minute: 60,
                     paused: false,
                     emergency_open: false,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
@@ -486,7 +522,6 @@ mod tests {
                     request_id: None,
                     session_id: Some("same".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -502,7 +537,6 @@ mod tests {
                     request_id: None,
                     session_id: Some("same".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -527,7 +561,6 @@ mod tests {
                     throughput_per_minute: 30,
                     paused: false,
                     emergency_open: false,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
@@ -543,7 +576,6 @@ mod tests {
                     request_id: None,
                     session_id: Some("s1".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -581,7 +613,6 @@ mod tests {
                     throughput_per_minute: 10,
                     paused: true,
                     emergency_open: false,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
@@ -597,7 +628,6 @@ mod tests {
                     request_id: None,
                     session_id: None,
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,
@@ -621,7 +651,6 @@ mod tests {
                     throughput_per_minute: 10,
                     paused: false,
                     emergency_open: false,
-                    invite_only: false,
                     dress_rehearsal: false,
                     bot_protection: BotProtectionMode::Off,
                     return_url: None,
@@ -637,7 +666,6 @@ mod tests {
                     request_id: Some("fixed-req".into()),
                     session_id: Some("s-fixed".into()),
                     return_url: None,
-                    invite_code: None,
                     turnstile_token: None,
                 },
                 &keys,

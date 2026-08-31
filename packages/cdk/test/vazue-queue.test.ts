@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { App, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 import { VazueQueue } from '../lib/vazue-queue.js';
 import { resolveConfig, validateConfig, loadAndMergeConfig } from '../lib/config.js';
 import { resolveFeatures } from '../lib/presets.js';
-import { writeFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 
 function synthPreset(preset: 'minimal' | 'standard' | 'full') {
   const app = new App();
@@ -48,7 +49,7 @@ function policyActionsForRole(template: Template, roleLogicalId: string): string
 describe('VazueQueue presets', () => {
   it('minimal has DynamoDB tables and HTTP API, no CloudFront', () => {
     const template = synthPreset('minimal');
-    template.resourceCountIs('AWS::DynamoDB::Table', 5);
+    template.resourceCountIs('AWS::DynamoDB::Table', 4);
     template.resourceCountIs('AWS::ApiGatewayV2::Api', 1);
     template.resourceCountIs('AWS::CloudFront::Distribution', 0);
     template.resourceCountIs('AWS::Cognito::UserPool', 0);
@@ -57,7 +58,7 @@ describe('VazueQueue presets', () => {
   it('standard includes CloudFront status cache policy', () => {
     const template = synthPreset('standard');
     template.resourceCountIs('AWS::CloudFront::Distribution', 1);
-    template.resourceCountIs('AWS::DynamoDB::Table', 5);
+    template.resourceCountIs('AWS::DynamoDB::Table', 4);
     template.hasResourceProperties('AWS::CloudFront::Distribution', {
       DistributionConfig: Match.objectLike({
         DefaultRootObject: 'index.html',
@@ -257,6 +258,8 @@ describe('config', () => {
     expect(cfg.security.botProtection.mode).toBe('off');
     expect(cfg.queue.counterShards).toBe(8);
     expect(cfg.waitingRoom.brandName).toBe('Vazue Queue');
+    expect(cfg.waitingRoom.defaultEventId).toBe('default');
+    expect(cfg.waitingRoom.defaultRoomId).toBe('default');
   });
 
   it('merges overlays', () => {
@@ -278,6 +281,14 @@ describe('config', () => {
       }),
     ).toThrow(/features\.stripe was removed/);
   });
+  it('config schema omits removed inviteOnly bot-protection flag', () => {
+    const schemaPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'config-schema.json');
+    const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
+      properties?: { security?: { properties?: { botProtection?: { properties?: Record<string, unknown> } } } };
+    };
+    const botProps = schema.properties?.security?.properties?.botProtection?.properties ?? {};
+    expect(botProps).not.toHaveProperty('inviteOnly');
+  });
 });
 
 describe('OSS-only stack', () => {
@@ -288,6 +299,24 @@ describe('OSS-only stack', () => {
     expect(tableIds.some((id) => id.includes('Events'))).toBe(true);
     expect(tableIds.some((id) => id.includes('Tenants'))).toBe(false);
     expect(tableIds.some((id) => id.includes('UsageDaily'))).toBe(false);
+  });
+
+  it('provisions four operator tables without Tokens audit table', () => {
+    const template = synthPreset('minimal');
+    const tableIds = Object.keys(template.findResources('AWS::DynamoDB::Table'));
+    expect(tableIds).toHaveLength(4);
+    expect(tableIds.some((id) => id.includes('Visitors'))).toBe(true);
+    expect(tableIds.some((id) => id.includes('Counters'))).toBe(true);
+    expect(tableIds.some((id) => id.includes('Tokens'))).toBe(false);
+  });
+
+  it('does not inject TOKENS_TABLE on data-plane Lambdas', () => {
+    const template = synthPreset('minimal');
+    const fns = Object.values(template.findResources('AWS::Lambda::Function'));
+    for (const fn of fns) {
+      const env = fn.Properties?.Environment?.Variables ?? {};
+      expect(env.TOKENS_TABLE).toBeUndefined();
+    }
   });
 
   it('does not inject VAZUE_DEPLOYMENT_PROFILE on queue Lambdas', () => {

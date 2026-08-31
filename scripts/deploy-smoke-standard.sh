@@ -77,6 +77,9 @@ echo "EVENTS_TABLE=$EVENTS_TABLE"
 }
 
 echo "==> seed event $EVENT_ID"
+ROOMS_TABLE=$(unproxy aws cloudformation describe-stack-resources --stack-name "$STACK_NAME" \
+  --query "StackResources[?ResourceType=='AWS::DynamoDB::Table' && contains(LogicalResourceId,'Rooms')].PhysicalResourceId" \
+  --output text)
 unproxy aws dynamodb put-item --table-name "$EVENTS_TABLE" --item "{
   \"tenantId\":{\"S\":\"default\"},
   \"eventId\":{\"S\":\"$EVENT_ID\"},
@@ -84,11 +87,26 @@ unproxy aws dynamodb put-item --table-name "$EVENTS_TABLE" --item "{
   \"throughputPerMinute\":{\"N\":\"60000\"},
   \"paused\":{\"BOOL\":false},
   \"emergencyOpen\":{\"BOOL\":false},
-  \"inviteOnly\":{\"BOOL\":false},
   \"dressRehearsal\":{\"BOOL\":false},
   \"botProtection\":{\"S\":\"off\"},
   \"returnUrl\":{\"S\":\"$RETURN_URL\"}
 }"
+unproxy aws dynamodb put-item --table-name "$ROOMS_TABLE" --item "{
+  \"tenantId\":{\"S\":\"default\"},
+  \"roomId\":{\"S\":\"default\"},
+  \"name\":{\"S\":\"Deploy smoke\"},
+  \"activeEventId\":{\"S\":\"$EVENT_ID\"},
+  \"defaultThroughput\":{\"N\":\"60000\"},
+  \"counterShards\":{\"N\":\"8\"},
+  \"tokenTtlSeconds\":{\"N\":\"3600\"},
+  \"visitorTtlHours\":{\"N\":\"24\"},
+  \"themeJson\":{\"S\":\"{}\"}
+}"
+
+echo "==> waiting room runtime config"
+curl -sf "${CURL_OPTS[@]}" "$WAITING_ROOM_URL/config.js" | grep -q "defaultEventId"
+curl -sf "${CURL_OPTS[@]}" "$WAITING_ROOM_URL/v1/rooms/default/active-event" \
+  | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("event_id")==sys.argv[1], d' "$EVENT_ID"
 
 poll_status() {
   local base=$1
@@ -168,6 +186,7 @@ Ephemeral **\`standard\`** preset deploy smoke in **us-east-1** (destroyed after
 | Enroll → status (API Gateway) | pass |
 | Enroll → status (CloudFront) | pass |
 | Waiting room HTML | pass |
+| Waiting room \`config.js\` + active-event | pass |
 | \`return_url\` on status | pass |
 
 ## Conditions

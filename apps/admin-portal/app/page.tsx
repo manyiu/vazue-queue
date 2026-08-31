@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 
 type Caps = {
-  deployment?: string;
   limits?: { max_throughput_per_minute?: number; max_counter_shards?: number };
 };
 
@@ -13,7 +12,6 @@ type EventRow = {
   throughput_per_minute: number;
   paused: boolean;
   emergency_open: boolean;
-  invite_only: boolean;
   dress_rehearsal: boolean;
   bot_protection: string;
 };
@@ -43,6 +41,7 @@ type RoomRow = {
   name: string;
   theme: RoomTheme;
   queue: { default_throughput_per_minute?: number };
+  active_event_id?: string;
 };
 
 type AdminRuntimeConfig = {
@@ -50,6 +49,9 @@ type AdminRuntimeConfig = {
   cognitoDomain?: string;
   cognitoClientId?: string;
   cognitoRedirectUri?: string;
+  waitingRoomUrl?: string;
+  defaultEventId?: string;
+  defaultRoomId?: string;
 };
 
 declare global {
@@ -203,14 +205,13 @@ export default function AdminHome() {
     return () => window.clearInterval(id);
   }, [token, apiBase, refresh]);
 
-  async function createEvent(roomId = rooms[0]?.room_id || 'default') {
+  async function createEvent(roomId = rooms[0]?.room_id || 'default', eventId?: string) {
     const body = {
-      event_id: `evt-${Date.now()}`,
+      event_id: eventId ?? `evt-${Date.now()}`,
       room_id: roomId,
       throughput_per_minute: throughput,
       paused: false,
       emergency_open: false,
-      invite_only: false,
       dress_rehearsal: dressRehearsal,
       bot_protection: 'off',
       return_url: 'https://example.com/checkout',
@@ -245,7 +246,40 @@ export default function AdminHome() {
       setMessage(await roomRes.text());
       return;
     }
-    await createEvent('default');
+    await createEvent('default', runtimeConfig().defaultEventId ?? 'default');
+  }
+
+  function waitingRoomLink(eventId: string): string | undefined {
+    const base = runtimeConfig().waitingRoomUrl;
+    if (!base) return undefined;
+    return `${base.replace(/\/$/, '')}/?event=${encodeURIComponent(eventId)}`;
+  }
+
+  async function setActiveEvent(roomId: string, eventId: string) {
+    const room = rooms.find((r) => r.room_id === roomId);
+    if (!room) {
+      setMessage('Room not found');
+      return;
+    }
+    const res = await fetch(`${apiBase}/v1/rooms/${roomId}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        ...room,
+        active_event_id: eventId,
+        queue: {
+          default_throughput_per_minute: room.queue.default_throughput_per_minute ?? 100,
+          counter_shards: 8,
+          token_ttl_seconds: 3600,
+          visitor_record_ttl_hours: 24,
+        },
+      }),
+    });
+    if (!res.ok) setMessage(await res.text());
+    else {
+      setMessage(`Active event set to ${eventId}`);
+      await refresh();
+    }
   }
 
   async function saveRoom(room: RoomRow) {
@@ -347,7 +381,6 @@ export default function AdminHome() {
           </h1>
           <p style={{ color: '#444', marginTop: 0 }}>
             Owner admin — rooms, live throttle, dress rehearsal
-            {caps?.deployment ? ` · ${caps.deployment}` : ''}
           </p>
         </div>
         <button type="button" onClick={logout}>
@@ -489,12 +522,20 @@ export default function AdminHome() {
                   {ev.throughput_per_minute}/min · paused={String(ev.paused)} · bots=
                   {ev.bot_protection}
                   {ev.dress_rehearsal ? ' · dress rehearsal' : ''}
-                  {ev.invite_only ? ' · invite only' : ''}
                 </div>
                 {s ? (
                   <div style={{ marginTop: 6, color: '#444', fontSize: '0.95rem' }}>
                     waiting {s.waiting} · serving {s.serving} · enrolled {s.queue_depth} · admitted{' '}
                     {s.admitted}
+                  </div>
+                ) : null}
+                {rooms.some((r) => r.active_event_id === ev.event_id) ? (
+                  <div style={{ marginTop: 6, color: '#0a6', fontSize: '0.95rem' }}>Active event</div>
+                ) : null}
+                {waitingRoomLink(ev.event_id) ? (
+                  <div style={{ marginTop: 6, fontSize: '0.9rem' }}>
+                    Waiting room:{' '}
+                    <a href={waitingRoomLink(ev.event_id)}>{waitingRoomLink(ev.event_id)}</a>
                   </div>
                 ) : null}
                 <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -532,12 +573,6 @@ export default function AdminHome() {
                   >
                     {ev.dress_rehearsal ? 'End rehearsal' : 'Dress rehearsal'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => liveOverride(ev.event_id, { invite_only: !ev.invite_only })}
-                  >
-                    {ev.invite_only ? 'Open enroll' : 'Invite only'}
-                  </button>
                   <label htmlFor={`bots-${ev.event_id}`}>
                     Bot protection
                     <select
@@ -554,6 +589,14 @@ export default function AdminHome() {
                   <button type="button" onClick={() => void exportCsv(ev.event_id)}>
                     Export CSV
                   </button>
+                  {!rooms.some((r) => r.active_event_id === ev.event_id) ? (
+                    <button
+                      type="button"
+                      onClick={() => void setActiveEvent(ev.room_id ?? 'default', ev.event_id)}
+                    >
+                      Set active
+                    </button>
+                  ) : null}
                 </div>
               </li>
             );
