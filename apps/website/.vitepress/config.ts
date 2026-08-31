@@ -32,10 +32,6 @@ export default withMermaid(
         text: 'GitHub',
         link: 'https://github.com/manyiu/vazue-queue',
       },
-      {
-        text: 'Sign in',
-        link: 'https://app.queue.vazue.com',
-      },
     ],
     sidebar: {
       '/docs/': [
@@ -44,7 +40,6 @@ export default withMermaid(
           items: [
             { text: 'Overview', link: '/docs/' },
             { text: 'Why Vazue Queue', link: '/docs/introduction/why-vazue' },
-            { text: 'Open source vs managed', link: '/docs/introduction/oss-vs-managed' },
           ],
         },
         {

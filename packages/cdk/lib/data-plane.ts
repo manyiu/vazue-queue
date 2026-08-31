@@ -55,13 +55,11 @@ export class QueueDataPlane extends Construct {
     });
 
     this.tables = {
-      Tenants: this.table('Tenants', 'tenantId', undefined, removal),
       Rooms: this.table('Rooms', 'tenantId', 'roomId', removal),
       Events: this.table('Events', 'tenantId', 'eventId', removal),
       Visitors: visitors,
       Counters: this.table('Counters', 'eventId', 'counterType', removal),
       Tokens: this.table('Tokens', 'eventId', 'tokenId', removal),
-      UsageDaily: this.table('UsageDaily', 'tenantId', 'date', removal),
     };
 
     if (config.features.enrollBuffer) {
@@ -78,7 +76,6 @@ export class QueueDataPlane extends Construct {
         : lambda.Architecture.X86_64;
 
     let baseEnv: Record<string, string> = {
-      VAZUE_DEPLOYMENT_PROFILE: config.features.stripe ? 'saas' : 'oss',
       TENANT_ID: 'default',
       BOT_PROTECTION_MODE: config.security.botProtection.mode ?? 'off',
     };

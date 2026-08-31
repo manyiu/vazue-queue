@@ -35,7 +35,7 @@ async fn main() -> Result<(), Error> {
     let state = AdminState {
         store,
         tenant_id,
-        capabilities: platform::Capabilities::from_env(),
+        capabilities: platform::Capabilities::default(),
     };
 
     let app = Router::new()

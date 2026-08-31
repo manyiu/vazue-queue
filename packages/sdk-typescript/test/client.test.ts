@@ -58,6 +58,21 @@ describe('QueueClient', () => {
     expect(s.status).toBe('enrolled');
     expect(s.poll_after_seconds).toBe(2);
   });
+
+  it('ready returns tenantId without deployment profile', async () => {
+    const client = new QueueClient({
+      baseUrl: 'http://localhost:3000',
+      fetch: async (input) => {
+        expect(String(input)).toContain('/ready');
+        return new Response(JSON.stringify({ status: 'ready', tenantId: 'default' }), {
+          status: 200,
+        });
+      },
+    });
+    const body = await client.ready();
+    expect(body.status).toBe('ready');
+    expect(body.tenantId).toBe('default');
+  });
 });
 
 describe('verifyAdmitToken', () => {

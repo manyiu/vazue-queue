@@ -159,7 +159,7 @@ async fn main() {
     let admin_state = AdminState {
         store: admin_store,
         tenant_id: "default".into(),
-        capabilities: Capabilities::oss_full(),
+        capabilities: Capabilities::default(),
     };
 
     let queue_app = Router::new()

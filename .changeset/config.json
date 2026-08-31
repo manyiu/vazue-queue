@@ -8,9 +8,6 @@
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": [
-    "@vazue/saas-plan-limits",
-    "@vazue/saas-billing",
-    "@vazue/saas-cdk",
     "@vazue/waiting-room",
     "@vazue/admin-portal",
     "@vazue/landing",

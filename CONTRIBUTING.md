@@ -44,7 +44,3 @@ Prefer &lt; 400 lines when possible; one logical change per PR.
 ## Build cop
 
 When `main` is red: notify, revert first if fix &gt; 15 minutes, restore green.
-
-## Commercial code
-
-Do not publish `packages/saas/*` to npm. See `docs/engineering/saas-license-boundary.md`.

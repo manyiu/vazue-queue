@@ -87,13 +87,12 @@ Go ([`queue-go`](https://github.com/manyiu/vazue-queue/tree/main/packages/sdk-go
 
 - **AWS bill only** — no per-visitor vendor fee
 - **Audit the source** — [github.com/manyiu/vazue-queue](https://github.com/manyiu/vazue-queue)
-- **Same APIs** as managed Vazue when SaaS launches — no rewrite
 
 [Full comparison →](/docs/introduction/why-vazue)
 
 ## License
 
-Apache-2.0 for published open source packages. Commercial SaaS code in `packages/saas/` is **not** published to npm.
+Apache-2.0 for published open source packages.
 
 ## Next steps
 

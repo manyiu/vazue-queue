@@ -150,4 +150,3 @@ Exact managed-service pricing depends on vendor and contract — the point is se
 - [Capacity planning](/docs/guides/capacity) — concurrent poller limits and load tests
 - [Presets](/docs/concepts/presets) — what each preset deploys
 - [Deploy with CDK](/docs/guides/deploy) — bootstrap and deploy steps
-- [Pricing](/pricing) — self-host vs managed paths

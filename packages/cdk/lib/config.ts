@@ -113,6 +113,14 @@ export function validateConfig(raw: unknown): asserts raw is VazueQueueConfig {
   if (cfg.awsRegion !== undefined && typeof cfg.awsRegion !== 'string') {
     throw new Error('Invalid vazue-queue config: awsRegion must be a string');
   }
+  if (cfg.features && typeof cfg.features === 'object') {
+    const features = cfg.features as Record<string, unknown>;
+    if ('stripe' in features) {
+      throw new Error(
+        'Invalid vazue-queue config: features.stripe was removed (OSS-only product)',
+      );
+    }
+  }
   if (cfg.queue && typeof cfg.queue === 'object') {
     const q = cfg.queue as Record<string, unknown>;
     if (q.counterShards !== undefined) {

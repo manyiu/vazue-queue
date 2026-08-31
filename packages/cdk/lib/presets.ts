@@ -7,7 +7,6 @@ export interface FeatureFlags {
   waf: boolean;
   edgeConnector: boolean;
   analytics: boolean;
-  stripe: boolean;
   enrollBuffer: boolean;
 }
 
@@ -19,7 +18,6 @@ const PRESETS: Record<PresetName, FeatureFlags> = {
     waf: false,
     edgeConnector: false,
     analytics: false,
-    stripe: false,
     enrollBuffer: true,
   },
   standard: {
@@ -29,7 +27,6 @@ const PRESETS: Record<PresetName, FeatureFlags> = {
     waf: false,
     edgeConnector: false,
     analytics: false,
-    stripe: false,
     enrollBuffer: true,
   },
   full: {
@@ -39,7 +36,6 @@ const PRESETS: Record<PresetName, FeatureFlags> = {
     waf: true,
     edgeConnector: true,
     analytics: true,
-    stripe: false,
     enrollBuffer: true,
   },
 };

@@ -98,9 +98,9 @@ export class QueueClient {
     return res.json() as Promise<{ status: string }>;
   }
 
-  async ready(): Promise<{ status: string; deployment?: string; tenantId?: string }> {
+  async ready(): Promise<{ status: string; tenantId: string }> {
     const res = await this.fetchImpl(`${this.baseUrl}/ready`);
-    return res.json() as Promise<{ status: string; deployment?: string; tenantId?: string }>;
+    return res.json() as Promise<{ status: string; tenantId: string }>;
   }
 }
 

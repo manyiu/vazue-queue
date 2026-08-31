@@ -25,7 +25,6 @@ Human-readable guide for `vazue-queue.config.json`. Machine schema: [`config-sch
 | `features.waf` | preset | WAF rate limiting |
 | `features.edgeConnector` | preset | Lambda@Edge origin gate |
 | `features.enrollBuffer` | `true` | SQS async enroll (202 + worker) |
-| `features.stripe` | `false` | SaaS metering (commercial) |
 
 ## Queue
 

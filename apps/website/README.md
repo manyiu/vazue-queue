@@ -1,6 +1,6 @@
 # Product website (`queue.vazue.com`)
 
-Unified VitePress site: marketing homepage, open source/SaaS pages, and technical docs at `/docs`.
+Unified VitePress site: marketing homepage, open source pages, and technical docs at `/docs`.
 
 ## Local preview (recommended)
 
