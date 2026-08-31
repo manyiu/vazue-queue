@@ -9,6 +9,7 @@ import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { CLOUDFRONT_INDEX_REWRITE_SOURCE } from './cloudfront-index-rewrite';
 
 export interface LandingStackProps extends cdk.StackProps {
   /** Public hostname, e.g. queue.vazue.com */
@@ -77,18 +78,7 @@ export class LandingStack extends cdk.Stack {
     });
 
     const indexRewrite = new cloudfront.Function(this, 'IndexRewrite', {
-      code: cloudfront.FunctionCode.fromInline(`
-function handler(event) {
-  var request = event.request;
-  var uri = request.uri;
-  if (uri.endsWith('/')) {
-    request.uri += 'index.html';
-  } else if (!uri.includes('.')) {
-    request.uri += '/index.html';
-  }
-  return request;
-}
-      `.trim()),
+      code: cloudfront.FunctionCode.fromInline(CLOUDFRONT_INDEX_REWRITE_SOURCE),
     });
 
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {

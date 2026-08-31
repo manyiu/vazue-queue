@@ -100,6 +100,9 @@ fi
 echo "==> website build"
 pnpm website:build
 
+echo "==> landing-cdk tests"
+pnpm --filter @vazue/landing-cdk test
+
 echo "==> pnpm package tests"
 pnpm --filter @yiu/queue-cdk test
 pnpm --filter @yiu/queue-sdk test
