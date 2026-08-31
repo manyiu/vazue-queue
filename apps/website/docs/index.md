@@ -39,7 +39,7 @@ Deploy with **`@yiu/queue-cdk`** into a dedicated AWS account.
 3. [Visitor flow](/docs/concepts/visitor-flow) — enroll → poll → admit
 4. [Quickstart](/docs/getting-started/quickstart) — deploy in ~10 minutes
 5. [SDK examples](/docs/reference/sdks) — client + origin verification code
-6. [Capacity planning](/docs/guides/capacity) — honest limits and load-test evidence
+6. [Capacity planning](/docs/guides/capacity) — poller vs enroll baselines, Lambda soft quotas, load-test evidence
 7. [AWS cost estimate](/docs/guides/cost) — model event spend before deploy
 
 ## Packages

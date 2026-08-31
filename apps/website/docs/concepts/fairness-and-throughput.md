@@ -52,6 +52,6 @@ concurrent ≈ pollers × (request_duration / (request_duration + sleep))
 Load tests treat these separately (see [Capacity planning](/docs/guides/capacity) for AWS quota context):
 
 - **Status polling:** baseline validated on default AWS account quotas (in-region)
-- **Enroll burst:** 1K unique simultaneous enrolls — buffered `standard` ~0% fail, p95 ~700–850ms
+- **Enroll burst:** ~1K unique simultaneous enrolls on buffered `standard` (~0% fail, p95 ~700–850ms in reference runs) — can approach Lambda's default **1,000 concurrent-execution quota per Region** (account-wide; [request increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html))
 
 Flash on-sale traffic is enroll-heavy. Plan for both.

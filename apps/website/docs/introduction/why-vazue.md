@@ -69,8 +69,8 @@ flowchart LR
 Load-test records are published with raw data — including what **default AWS quotas** supported before throttling:
 
 - **~10,000** concurrent status pollers on a reference stack with **default account limits** (not a product maximum)
-- **~1,000** simultaneous unique enrolls on `standard` with buffer (0% fail in reference runs)
-- **~100,000** poller experiment — **AWS throttling** without quota increases, documented as exploratory
+- **~1,000** simultaneous unique enrolls on `standard` with buffer (0% fail in reference runs) — planning baseline on default quotas; can approach Lambda's **1,000 concurrent-execution quota per Region** (account-wide, all functions), not a Vazue limit ([request increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html))
+- **~100,000** poller experiment (10 parallel load generators) — **API Gateway / Lambda aggregate throttling** without quota increases, documented as exploratory (not a product limit)
 
 [Capacity guide →](/docs/guides/capacity)
 

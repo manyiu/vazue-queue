@@ -77,8 +77,8 @@ Go ([`queue-go`](https://github.com/manyiu/vazue-queue/tree/main/packages/sdk-go
 | Concern | Planning note |
 |---------|----------------|
 | Visitor ceiling | **None in software** — scale is limited by AWS quotas and preset config |
-| Default-account baseline | ~10K concurrent pollers validated in-region on reference stack ([details](/docs/guides/capacity)) |
-| Simultaneous unique enrolls | ~1K on `standard` + buffer (reference SLO) |
+| Concurrent status pollers | ~10K validated in-region on reference stack — pollers sleep between polls, so many visitors share Lambda concurrency ([details](/docs/guides/capacity)) |
+| Simultaneous unique enrolls | ~1K on `standard` + buffer (reference SLO) — planning baseline; can approach Lambda's **1,000 concurrent-execution quota per Region** (account-wide). [Request increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html) ([AWS docs](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)) |
 | Idle between events | Near-zero serverless cost |
 
 [Capacity planning →](/docs/guides/capacity)

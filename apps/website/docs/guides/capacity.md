@@ -8,7 +8,7 @@ Vazue Queue does **not** cap how many visitors can wait in line. Scale is bounde
 
 | AWS limit (typical default) | Effect at scale |
 |-----------------------------|-----------------|
-| Lambda concurrent executions (~1,000/region) | Caps simultaneous enroll/status invocations |
+| Lambda concurrent executions (**1,000/Region**, adjustable soft quota) | **Account-wide** cap shared by every Lambda in the Region. A flash of ~1,000 simultaneous enrolls can approach this ceiling (enroll handlers; on buffered `standard`, async workers too). Status polling at ~10K concurrent pollers typically uses far fewer concurrent executions because clients sleep between polls. [Request a quota increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html) via Service Quotas (support case). See [Lambda concurrency quotas](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html). **New accounts** may start below 1,000 ([Lambda quotas](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html)). |
 | API Gateway HTTP API RPS | Caps request rate before throttling |
 | DynamoDB on-demand throughput | Scales with traffic; hot keys matter for single-event tests |
 | CloudFront | Offloads status polling on `standard` / `full` presets |
@@ -16,7 +16,9 @@ Vazue Queue does **not** cap how many visitors can wait in line. Scale is bounde
 Load tests document what a **reference stack on default quotas** achieved. Larger events require [quota increases](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html) and often the `standard` preset (CloudFront status cache) — same as any serverless architecture on AWS.
 
 ::: tip Read this correctly
-**~10,000 concurrent pollers** in our baseline test means “validated on default AWS limits,” not “product max is 10K.” A 100K-poller exploratory run hit **AWS throttling**, not an application error — see table below.
+**~10,000 concurrent pollers** in our baseline test means “validated on default AWS limits,” not “product max is 10K.” A **~100K** exploratory run (10 parallel load generators) hit **API Gateway / Lambda aggregate throttling**, not an application error — see table below.
+
+**~1,000 simultaneous unique enrolls** is different: a flash enroll burst can approach Lambda's default **1,000 concurrent-execution quota per Region** ([AWS docs](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)) — **account-wide across all functions in your account**, not a Vazue product limit. Sync `minimal` enroll holds the handler for the full write path; buffered `standard` returns **202** quickly but workers add concurrent invocations. [Request a quota increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html) in Service Quotas (support case) to scale beyond it.
 :::
 
 ## Validated (in-region load tests)
@@ -35,6 +37,8 @@ Tests use `scripts/load-test-status.js`: each virtual user polls `GET /v1/events
 ### Enroll burst
 
 Tests use `scripts/load-test-enroll.js`: each virtual user performs one unique `POST …/enroll` (flash-traffic / on-sale shape).
+
+**Why ~1K enrolls on default quotas:** Each simultaneous enroll consumes Lambda concurrency while handlers run. A flash of ~1,000 unique enrolls can approach Lambda's **default account-wide quota of 1,000 concurrent executions per Region** ([concurrency quotas](https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html)) — shared across **all functions in your account**, not a Vazue product ceiling. On sync `minimal`, the enroll handler holds concurrency for the full DynamoDB write path; on buffered `standard`, the enroll handler returns **202** quickly but async workers add invocations. Request a [quota increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html) in Service Quotas (support case) to go higher. Check current limit: `aws lambda get-account-settings` → `AccountLimit.ConcurrentExecutions`. **New AWS accounts** may start below 1,000 until usage ramps ([Lambda quotas](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html)).
 
 **Reference-stack enroll SLO (not a release gate):** fail &lt; 1%, POST p95 typically **~700–850ms** at 1K simultaneous unique enrolls in-region on `standard` + buffer (512 MB Lambda). Latency varies run-to-run when every VU cold-starts a new Lambda; reliability is the meaningful gate.
 
@@ -57,7 +61,7 @@ Tests use `scripts/load-test-enroll.js`: each virtual user performs one unique `
 | Visitor keys | All pollers share **one** `request_id` (worst-case hot read) | One DynamoDB item per visitor — **spread read load** |
 | Poll interval | Near-front visitor → often **2s** between polls | Back of queue → up to **30s** — **lower RPS** per poller when far from front |
 | Enroll burst | `scripts/load-test-enroll.js` (one unique enroll per VU) | Flash traffic **enrolls many new visitors** — run in-region to record; status-only tests still use one shared `request_id` |
-| AWS quotas | Default account limits (Lambda concurrency **1,000**/region, API Gateway RPS limits) | Same unless quota increases are requested |
+| AWS quotas | Default account limits (Lambda concurrency **1,000**/Region account-wide soft quota — [request increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html); API Gateway RPS limits) | Same unless quota increases are requested |
 
 **Summary:** Status polling behavior is realistic. The **`minimal` tests are a reasonable lower bound** for origin stress; **`standard` + CloudFront may perform better** for steady polling. **Enroll burst at 1K concurrent unique enrolls:** sync `minimal` ~0.1% fail / p95 ~1.4s; buffered `standard` **0% fail / p95 ~700–850ms** (see [load-test-enroll-2026-08-29](https://github.com/manyiu/vazue-queue/blob/main/docs/launch/load-test-enroll-2026-08-29.md) and [load-test-enroll-standard-2026-08-29](https://github.com/manyiu/vazue-queue/blob/main/docs/launch/load-test-enroll-standard-2026-08-29.md)) — buffer roughly halves POST latency under flash load. Global RTT is **not** fully covered. Published poller counts describe **AWS-validated baselines**, not “maximum visitors supported.”
 
@@ -94,7 +98,7 @@ Example: 10,000 pollers, 40ms requests, 2s poll → **~4,900 RPS** to origin on 
 
 ## Scaling beyond default AWS quotas
 
-Without quota increases, **~100K concurrent pollers** hit **AWS throttling** in an exploratory run — not an application-level rejection. To scale further:
+Without quota increases, a **~100K concurrent poller** exploratory run (10 parallel load generators) hit **API Gateway / Lambda aggregate throttling** — not an application-level rejection. Single-worker **10K** poller tests passed on the same default quotas because pollers sleep between requests. To scale further:
 
 1. Request **Lambda concurrent execution** and **API Gateway** limit increases (cost/account review).
 2. Use **`standard`** or **`full`** preset so CloudFront caches status polls.

@@ -83,6 +83,17 @@ See [SDKs](/docs/reference/sdks) for TypeScript, Go, and Java examples (includin
 
 Read [Visitor flow](/docs/concepts/visitor-flow) for details.
 
+## Plan capacity
+
+Flash on-sale traffic is **enroll-heavy**. On default AWS quotas:
+
+| Workload | Baseline | Why |
+|----------|----------|-----|
+| **Simultaneous unique enrolls** | ~1,000 (reference load tests) | Sync `minimal`: handler holds concurrency for full write path. Buffered `standard`: **202** quickly, workers add invocations. Both tested at ~1K on default quotas. Approaches Lambda's **1,000 concurrent-execution quota per Region** (account-wide). [Request increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html). |
+| **Concurrent status pollers** | ~10,000 | Pollers sleep between requests — typically ~200 concurrent Lambdas at steady state, not 10K |
+
+[Capacity planning →](/docs/guides/capacity)
+
 ## Next steps
 
 - [Local development](/docs/getting-started/local-development)

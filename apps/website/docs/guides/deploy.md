@@ -35,7 +35,14 @@ Default AWS region for examples: **us-east-1**.
 
 ## Capacity
 
-Reference-stack load tests on **default AWS account quotas** validated **~1K** and **~10K concurrent status pollers** in-region (fail &lt; 1%, p95 &lt; 250ms). These are **AWS baseline numbers**, not a product visitor limit — see [Capacity planning](/docs/guides/capacity) for scaling with quota increases and CloudFront caching.
+Reference-stack load tests on **default AWS account quotas** (in-region):
+
+| Workload | Baseline | Notes |
+|----------|----------|-------|
+| **Concurrent status pollers** | ~10,000 | Pollers sleep between polls — ~10K visitors typically use far fewer than 10K concurrent Lambdas |
+| **Simultaneous unique enrolls** | ~1,000 (reference load tests) | Can approach Lambda's default **1,000 concurrent-execution quota per Region** (account-wide, all functions) — not a Vazue limit; [request increase](https://docs.aws.amazon.com/servicequotas/latest/userguide/request-quota-increase.html) via Service Quotas |
+
+These are **AWS baseline numbers**, not a product visitor limit. See [Capacity planning](/docs/guides/capacity) for load-test records, formulas, and scaling beyond default quotas.
 
 ## Pre-built assets (from this monorepo)
 
@@ -158,7 +165,7 @@ Attach that file to the open source v1 release notes. The GitHub `Load test` wor
 
 **Open source v1 release gate:** in-region **1000 VUs** and **10,000 VUs** (`PROFILE=rc`). Run the generator **in the same region** as the data plane when measuring p95 (cross-region RTT can dominate).
 
-`scripts/load-test-enroll.js` (enroll burst) writes the same `load-test-report.json` shape. **Enroll burst RC gate:** fail rate only (`http_req_failed_rate` &lt; 0.01). POST p95 is recorded for capacity docs (reference stack ~700–850ms at 1K VUs on buffered `standard`); it is **not** an open source release gate.
+`scripts/load-test-enroll.js` (enroll burst) writes the same `load-test-report.json` shape. **Enroll burst RC gate:** fail rate only (`http_req_failed_rate` &lt; 0.01). POST p95 is recorded for capacity docs (reference stack ~700–850ms at 1K VUs on buffered `standard`); it is **not** an open source release gate. At ~1K simultaneous unique enrolls, load tests approach Lambda's default **1,000 concurrent-execution quota per Region** — see [Capacity planning — Enroll burst](/docs/guides/capacity#enroll-burst).
 
 | Field | RC gate |
 |-------|---------|

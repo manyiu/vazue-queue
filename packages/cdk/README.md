@@ -28,7 +28,7 @@ Or use `VazueQueue` / `VazueQueueApp` directly in your CDK app — see `examples
 
 ## Capacity
 
-See [Capacity planning](https://queue.vazue.com/docs/guides/capacity) — validated **~10K concurrent pollers** in-region; formulas for estimating origin load vs poll interval.
+See [Capacity planning](https://queue.vazue.com/docs/guides/capacity) — validated **~10K concurrent pollers** and **~1K simultaneous enrolls** on default AWS quotas (in-region); enroll bursts can approach Lambda's 1,000 concurrent-execution quota per Region.
 
 ## License
 
