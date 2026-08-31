@@ -1,20 +1,5 @@
-# Marketing landing (`queue.vazue.com`)
+# Marketing landing (`queue.vazue.com`) — deprecated
 
-Static first viewport for the OSS product.
+**Superseded by [`apps/website`](../website)** — the unified product site (marketing + docs).
 
-## Local
-
-```bash
-pnpm --filter @vazue/landing build
-pnpm --filter @vazue/landing dev
-```
-
-## Deploy to AWS (CDK)
-
-Use the private stack in [`../landing-cdk`](../landing-cdk): S3 + CloudFront + ACM + Route 53 for `queue.vazue.com`.
-
-```bash
-pnpm --filter @vazue/landing-cdk deploy
-```
-
-See [`../landing-cdk/README.md`](../landing-cdk/README.md).
+This package remains for reference; deploy uses `apps/website` via `landing-cdk`.

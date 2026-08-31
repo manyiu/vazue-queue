@@ -49,7 +49,7 @@ export class LandingStack extends cdk.Stack {
 
     if (!existsSync(props.siteAssetPath)) {
       throw new Error(
-        `Landing assets not found at ${props.siteAssetPath}. Run: pnpm --filter @vazue/landing build`,
+        `Website assets not found at ${props.siteAssetPath}. Run: pnpm website:build`,
       );
     }
 
@@ -87,8 +87,8 @@ export class LandingStack extends cdk.Stack {
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         compress: true,
       },
-      // Static marketing site (not an SPA) — leave missing paths as real 404s.
-      comment: `Vazue Queue marketing — ${props.domainName}`,
+      // VitePress pre-renders each route to *.html — no SPA fallback (that breaks /assets/*).
+      comment: `Vazue Queue website — ${props.domainName}`,
     });
 
     new route53.ARecord(this, 'AliasA', {
@@ -127,20 +127,28 @@ export class LandingStack extends cdk.Stack {
 }
 
 /**
- * Resolve apps/landing/dist whether running via ts-node (…/lib) or compiled JS (…/dist/lib).
+ * Resolve apps/website/.vitepress/dist whether running via ts-node (…/lib) or compiled JS (…/dist/lib).
  */
-export function defaultLandingAssetPath(): string {
+export function defaultWebsiteAssetPath(): string {
   const candidates = [
-    // ts-node: apps/landing-cdk/lib → apps/landing/dist
+    // ts-node: apps/landing-cdk/lib → apps/website/.vitepress/dist
+    join(__dirname, '..', '..', 'website', '.vitepress', 'dist'),
+    // compiled: apps/landing-cdk/dist/lib → apps/website/.vitepress/dist
+    join(__dirname, '..', '..', '..', 'website', '.vitepress', 'dist'),
+    // legacy fallback during migration
     join(__dirname, '..', '..', 'landing', 'dist'),
-    // compiled: apps/landing-cdk/dist/lib → apps/landing/dist
     join(__dirname, '..', '..', '..', 'landing', 'dist'),
   ];
   const found = candidates.find((p) => existsSync(join(p, 'index.html')));
   if (!found) {
     throw new Error(
-      `Landing assets not found (tried ${candidates.join(', ')}). Run: pnpm --filter @vazue/landing build`,
+      `Website assets not found (tried ${candidates.join(', ')}). Run: pnpm website:build`,
     );
   }
   return found;
+}
+
+/** @deprecated Use defaultWebsiteAssetPath */
+export function defaultLandingAssetPath(): string {
+  return defaultWebsiteAssetPath();
 }

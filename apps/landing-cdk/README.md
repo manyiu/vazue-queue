@@ -1,7 +1,7 @@
-# Marketing landing CDK (`queue.vazue.com`)
+# Product website CDK (`queue.vazue.com`)
 
 Private stack: **S3 + CloudFront (OAC) + ACM (us-east-1) + Route 53** alias for
-`queue.vazue.com`. Not published to npm.
+`queue.vazue.com`. Hosts the unified marketing + documentation site (`apps/website`).
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ pnpm install
 pnpm --filter @vazue/landing-cdk deploy
 ```
 
-That builds `apps/landing/dist`, then deploys stack `VazueQueueLanding`.
+That runs `pnpm website:build` then deploys stack `VazueQueueLanding`.
 
 Optional context / env:
 

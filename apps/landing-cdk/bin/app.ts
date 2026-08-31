@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
-import { LandingStack, defaultLandingAssetPath } from '../lib/landing-stack';
+import { LandingStack, defaultWebsiteAssetPath } from '../lib/landing-stack';
 
 const app = new cdk.App();
 
@@ -18,14 +18,14 @@ new LandingStack(app, 'VazueQueueLanding', {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: 'us-east-1',
   },
-  description: 'Marketing landing for queue.vazue.com',
+  description: 'Product website for queue.vazue.com (marketing + docs)',
   domainName,
   hostedZoneName,
   hostedZoneId: hostedZoneId || undefined,
-  siteAssetPath: defaultLandingAssetPath(),
+  siteAssetPath: defaultWebsiteAssetPath(),
   tags: {
     product: 'vazue-queue',
-    component: 'landing',
+    component: 'website',
   },
 });
 

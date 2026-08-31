@@ -1,0 +1,337 @@
+:root {
+  --vp-c-brand-1: #c8e85a;
+  --vp-c-brand-2: #e8ff6b;
+  --vp-c-brand-3: #9eb8ae;
+  --vp-c-brand-soft: rgba(200, 232, 90, 0.12);
+  --vq-ink: #071018;
+  --vq-muted: #5c6b73;
+  --vp-font-family-base: 'Manrope', system-ui, sans-serif;
+  --vp-font-family-mono: ui-monospace, 'SF Mono', monospace;
+}
+
+/* —— Home hero —— */
+.VPHome {
+  padding-bottom: 0 !important;
+}
+
+.VPHome .VPHero {
+  padding: 4.5rem 1.5rem 3rem;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, var(--vp-c-brand-soft), transparent 70%),
+    linear-gradient(180deg, var(--vp-c-bg) 0%, var(--vp-c-bg-soft) 100%);
+}
+
+.VPHome .VPHero .name {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 2.75rem !important;
+}
+
+.VPHome .VPHero .text {
+  font-family: 'Fraunces', Georgia, serif;
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  font-size: 1.65rem !important;
+  max-width: 22ch;
+  line-height: 1.25;
+}
+
+.VPHome .VPHero .tagline {
+  color: var(--vp-c-text-2);
+  max-width: 42ch;
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.VPHome .VPHero .actions {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.VPHome .VPFeature {
+  border-radius: 0.5rem;
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg-soft);
+  transition: border-color 0.2s;
+}
+
+.VPHome .VPFeature:hover {
+  border-color: var(--vp-c-brand-3);
+}
+
+.VPHome .VPFeature .title {
+  font-weight: 700;
+}
+
+/* —— Below-fold marketing sections —— */
+.vq-home {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.vq-section {
+  margin-bottom: 3.5rem;
+}
+
+.vq-section h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.75rem;
+}
+
+.vq-lead {
+  color: var(--vp-c-text-2);
+  max-width: 52ch;
+  line-height: 1.65;
+  margin: 0 0 1.75rem;
+}
+
+.vq-steps {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .vq-steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.vq-step {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  background: var(--vp-c-bg-soft);
+}
+
+.vq-step-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.vq-step h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+
+.vq-step p {
+  font-size: 0.9rem;
+  color: var(--vp-c-text-2);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.vq-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+  font-size: 0.95rem;
+}
+
+.vq-link-row a {
+  color: var(--vp-c-brand-1);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vq-link-row a:hover {
+  text-decoration: underline;
+}
+
+.vq-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.vq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.vq-table th,
+.vq-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--vp-c-divider);
+  vertical-align: top;
+}
+
+.vq-table th {
+  background: var(--vp-c-bg-soft);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vq-table th:first-child,
+.vq-table td:first-child {
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg-soft);
+}
+
+.vq-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.vq-muted {
+  font-size: 0.9rem;
+  color: var(--vp-c-text-2);
+  line-height: 1.6;
+  max-width: 60ch;
+}
+
+.vq-muted code {
+  font-size: 0.82rem;
+}
+
+.vq-terminal {
+  background: var(--vq-ink);
+  color: #e8edf2;
+  border-radius: 0.5rem;
+  padding: 1.25rem 1.5rem;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  overflow-x: auto;
+  margin: 0 0 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.vq-terminal code {
+  font-family: var(--vp-font-family-mono);
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+.vq-cards {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .vq-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.vq-card {
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 0.5rem;
+  padding: 1.25rem;
+  background: var(--vp-c-bg-soft);
+}
+
+.vq-card h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+}
+
+.vq-card p {
+  font-size: 0.9rem;
+  color: var(--vp-c-text-2);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.vq-cta {
+  margin-top: 1rem;
+}
+
+.vq-cta-inner {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border-radius: 0.75rem;
+  background:
+    radial-gradient(ellipse 70% 80% at 50% 100%, var(--vp-c-brand-soft), transparent),
+    var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-divider);
+}
+
+.vq-cta-inner h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.75rem;
+  margin: 0 0 0.5rem;
+}
+
+.vq-cta-inner > p {
+  color: var(--vp-c-text-2);
+  margin: 0 0 1.5rem;
+}
+
+.vq-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.vq-btn {
+  display: inline-block;
+  padding: 0.55rem 1.1rem;
+  border-radius: 2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid var(--vp-c-divider);
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.vq-btn:hover {
+  border-color: var(--vp-c-brand-3);
+}
+
+.vq-btn.primary {
+  background: var(--vp-c-brand-1);
+  color: var(--vq-ink);
+  border-color: var(--vp-c-brand-1);
+}
+
+.vq-btn.primary:hover {
+  background: var(--vp-c-brand-2);
+  border-color: var(--vp-c-brand-2);
+}
+
+.vq-btn.ghost {
+  background: transparent;
+}
+
+/* —— Mermaid —— */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* —— Doc pages: callout-style first paragraph on key pages —— */
+.vp-doc h1 + p {
+  font-size: 1.05rem;
+  color: var(--vp-c-text-2);
+  line-height: 1.65;
+}

@@ -2,12 +2,12 @@
   "name": "@vazue/landing-cdk",
   "version": "0.1.0",
   "private": true,
-  "description": "CDK stack for queue.vazue.com marketing landing (S3 + CloudFront + ACM + Route 53)",
+  "description": "CDK stack for queue.vazue.com product website (S3 + CloudFront + ACM + Route 53)",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "synth": "cdk synth",
-    "deploy": "pnpm --filter @vazue/landing build && cdk deploy --require-approval never",
+    "deploy": "pnpm website:build && cdk deploy --require-approval never",
     "diff": "cdk diff",
     "destroy": "cdk destroy"
   },

@@ -64,6 +64,9 @@ else
   fi
 fi
 
+echo "==> website build"
+pnpm website:build
+
 echo "==> pnpm package tests"
 pnpm --filter @yiu/queue-cdk test
 pnpm --filter @yiu/queue-sdk test

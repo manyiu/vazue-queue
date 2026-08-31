@@ -22,12 +22,13 @@ Or use `VazueQueue` / `VazueQueueApp` directly in your CDK app — see `examples
 
 ## Docs
 
-- Deploy runbook: [`docs/deploy/oss-cdk.md`](https://github.com/manyiu/vazue-queue/blob/main/docs/deploy/oss-cdk.md)
+- Website: [queue.vazue.com/docs](https://queue.vazue.com/docs)
+- Deploy runbook: [queue.vazue.com/docs/guides/deploy](https://queue.vazue.com/docs/guides/deploy)
 - Config schema: `config-schema.json` (also written by `create-vazue-queue`)
 
 ## Capacity
 
-See [`docs/deploy/capacity.md`](https://github.com/manyiu/vazue-queue/blob/main/docs/deploy/capacity.md) — validated **~10K concurrent pollers** in-region; formulas for estimating origin load vs poll interval.
+See [Capacity planning](https://queue.vazue.com/docs/guides/capacity) — validated **~10K concurrent pollers** in-region; formulas for estimating origin load vs poll interval.
 
 ## License
 

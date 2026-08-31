@@ -6,17 +6,31 @@ Minimum: **Go 1.22+**.
 go get github.com/vazue/queue-go@latest
 ```
 
+## Client
+
 ```go
 client := queue.NewClient("https://queue.example.com")
-enrolled, err := client.Enroll(ctx, "demo", queue.EnrollRequest{ReturnURL: "https://shop.example.com/checkout"})
-status, err := client.Status(ctx, "demo", enrolled.RequestID)
-ok := queue.VerifyAdmitToken(status.AdmitToken, hmacSecret, time.Now())
+enrolled, err := client.Enroll(ctx, "my-event", queue.EnrollRequest{
+    ReturnURL: "https://shop.example.com/checkout",
+})
+status, err := client.WaitUntilAdmitted(ctx, "my-event", enrolled.RequestID, 3600)
 ```
 
-## Test without a local Go install
+## Origin verification
+
+```go
+token := queue.ExtractAdmitTokenFromRequest(r)
+claims := queue.VerifyAdmitToken(token, os.Getenv("VAZUE_JWT_SECRET"), time.Now())
+```
+
+## Tests
 
 ```bash
-bash scripts/sdk-go-test.sh   # Docker — local convenience
+go test -count=1 ./...                              # unit tests
+bash scripts/sdk-go-test.sh                         # Docker (no local Go)
+SDK_INTEGRATION=1 go test -tags=integration ./...   # against local-server
 ```
 
-CI uses native Go via `actions/setup-go` (see `.github/workflows/generate-sdks.yml`).
+## Docs
+
+[queue.vazue.com/docs/reference/sdks](https://queue.vazue.com/docs/reference/sdks)
