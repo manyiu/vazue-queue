@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { rewriteViewerUri } from '../lib/cloudfront-index-rewrite';
+import {
+  CLOUDFRONT_INDEX_REWRITE_SOURCE,
+  rewriteViewerUri,
+  rewriteViewerUriFromCloudFrontSource,
+} from '../lib/cloudfront-index-rewrite';
+
+const rewriteCases = [
+  '/docs/',
+  '/',
+  '/docs/concepts/architecture',
+  '/docs/introduction/why-vazue',
+  '/oss',
+  '/docs',
+  '/assets/app.BqosFHJa.js',
+  '/favicon.svg',
+];
 
 describe('CloudFront index rewrite', () => {
   it('maps directory paths to index.html', () => {
@@ -24,5 +39,12 @@ describe('CloudFront index rewrite', () => {
   it('leaves asset paths unchanged', () => {
     expect(rewriteViewerUri('/assets/app.BqosFHJa.js')).toBe('/assets/app.BqosFHJa.js');
     expect(rewriteViewerUri('/favicon.svg')).toBe('/favicon.svg');
+  });
+
+  it('keeps deployed CloudFront source in sync with rewriteViewerUri', () => {
+    expect(CLOUDFRONT_INDEX_REWRITE_SOURCE).toContain('function handler(event)');
+    for (const uri of rewriteCases) {
+      expect(rewriteViewerUriFromCloudFrontSource(uri)).toBe(rewriteViewerUri(uri));
+    }
   });
 });

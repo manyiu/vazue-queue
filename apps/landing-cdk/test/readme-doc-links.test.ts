@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { rewriteViewerUri } from '../lib/cloudfront-index-rewrite';
 
-const repoRoot = join(__dirname, '..', '..', '..');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const distRoot = join(repoRoot, 'apps', 'website', '.vitepress', 'dist');
 const readme = readFileSync(join(repoRoot, 'README.md'), 'utf8');
 
@@ -13,6 +14,14 @@ function collectQueueDocUrls(markdown: string): string[] {
 }
 
 describe('README queue.vazue.com doc URLs', () => {
+  beforeAll(() => {
+    if (!existsSync(distRoot)) {
+      throw new Error(
+        `Website build output not found at ${distRoot}. Run: pnpm website:build`,
+      );
+    }
+  });
+
   const paths = collectQueueDocUrls(readme);
 
   it('lists expected README doc paths', () => {

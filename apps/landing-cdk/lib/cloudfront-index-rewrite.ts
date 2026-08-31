@@ -34,3 +34,12 @@ export function rewriteViewerUri(uri: string): string {
   }
   return uri;
 }
+
+/** Execute the deployed CloudFront Function source (kept in sync via unit tests). */
+export function rewriteViewerUriFromCloudFrontSource(uri: string): string {
+  const event = { request: { uri } };
+  const run = new Function('event', `${CLOUDFRONT_INDEX_REWRITE_SOURCE}; return handler(event);`) as (
+    e: typeof event,
+  ) => { uri: string };
+  return run(event).uri;
+}
