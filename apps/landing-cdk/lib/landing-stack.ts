@@ -76,6 +76,21 @@ export class LandingStack extends cdk.Stack {
       autoDeleteObjects: ephemeral,
     });
 
+    const indexRewrite = new cloudfront.Function(this, 'IndexRewrite', {
+      code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var request = event.request;
+  var uri = request.uri;
+  if (uri.endsWith('/')) {
+    request.uri += 'index.html';
+  } else if (!uri.includes('.')) {
+    request.uri += '/index.html';
+  }
+  return request;
+}
+      `.trim()),
+    });
+
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultRootObject: 'index.html',
       domainNames: [props.domainName],
@@ -86,6 +101,12 @@ export class LandingStack extends cdk.Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         compress: true,
+        functionAssociations: [
+          {
+            function: indexRewrite,
+            eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+          },
+        ],
       },
       // VitePress pre-renders each route to *.html — no SPA fallback (that breaks /assets/*).
       comment: `Vazue Queue website — ${props.domainName}`,

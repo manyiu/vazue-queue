@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "synth": "cdk synth",
-    "deploy": "pnpm website:build && cdk deploy --require-approval never",
+    "deploy": "pnpm -w website:build && cdk deploy --require-approval never",
     "diff": "cdk diff",
     "destroy": "cdk destroy"
   },

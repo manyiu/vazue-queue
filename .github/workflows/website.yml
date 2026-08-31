@@ -17,8 +17,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Set repository secret AWS_WEBSITE_DEPLOY_ROLE_ARN to enable auto-deploy.
-    if: ${{ secrets.AWS_WEBSITE_DEPLOY_ROLE_ARN != '' }}
+    # Set repository variable AWS_ROLE_ARN (see GithubOidcStack DeployRoleArn output).
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -30,7 +29,7 @@ jobs:
           cache: pnpm
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_WEBSITE_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: us-east-1
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @vazue/landing-cdk deploy
+      - run: pnpm --filter @vazue/landing-cdk run deploy
