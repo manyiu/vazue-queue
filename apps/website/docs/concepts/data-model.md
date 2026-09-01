@@ -19,7 +19,7 @@ Visitors GSI **`bySession`**: PK `eventId`, SK `sessionId` — lookup existing v
 
 ### FIFO position
 
-`Counters` row `queue#global` (or sharded `queue#shard{N}`) incremented atomically on enroll. Visitor record stores assigned position.
+On enroll, `queue#shard{S}` is incremented atomically (`S` from session hash). Position is the **sum of all shard counters** (dense 1..N). Visitor record stores assigned position once.
 
 ### Serving counter
 
@@ -27,7 +27,9 @@ Visitors GSI **`bySession`**: PK `eventId`, SK `sessionId` — lookup existing v
 
 ### Sharding
 
-`counterType = queue#shard{N}` for N in `0..counterShards-1`. Configurable via `queue.counterShards` (1–64).
+`counterType = queue#shard{N}` for N in `0..counterShards-1`. Configurable via `queue.counterShards` (1–64). Spreads enroll counter writes across N items instead of one hot key. Admin queue depth sums shard counters; status polls do not.
+
+**Fresh events only:** Do not upgrade a live event mid-queue from the legacy `queue#global` allocator to shard-only positions.
 
 ## TTL
 

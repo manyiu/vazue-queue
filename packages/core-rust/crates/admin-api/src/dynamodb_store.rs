@@ -4,7 +4,7 @@ use crate::store::{AdminError, AdminStore, EventStats, LiveOverrides, Room};
 use async_trait::async_trait;
 use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
-use queue_kernel::{BotProtectionMode, EventConfig, QueueConfig};
+use queue_kernel::{merge_counter_shards, BotProtectionMode, EventConfig, QueueConfig};
 use std::collections::HashMap;
 use std::env;
 use uuid::Uuid;
@@ -14,6 +14,7 @@ pub struct DynamoDbAdminStore {
     rooms_table: String,
     events_table: String,
     counters_table: String,
+    counter_shards: u32,
 }
 
 impl DynamoDbAdminStore {
@@ -25,6 +26,10 @@ impl DynamoDbAdminStore {
             events_table: env::var("EVENTS_TABLE")
                 .map_err(|_| AdminError::Message("EVENTS_TABLE required".into()))?,
             counters_table: env::var("COUNTERS_TABLE").unwrap_or_else(|_| "Counters".into()),
+            counter_shards: env::var("COUNTER_SHARDS")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(8),
         })
     }
 
@@ -92,6 +97,54 @@ impl DynamoDbAdminStore {
             .as_ref()
             .and_then(|i| Self::get_n_u64(i, "value"))
             .unwrap_or(0))
+    }
+
+    async fn sum_shard_counters(&self, event_id: &str) -> Result<u64, AdminError> {
+        use aws_sdk_dynamodb::types::KeysAndAttributes;
+
+        let shard_count = self.counter_shards.max(1);
+        let keys: Vec<HashMap<String, AttributeValue>> = (0..shard_count)
+            .map(|i| {
+                HashMap::from([
+                    ("eventId".into(), Self::s(event_id)),
+                    ("counterType".into(), Self::s(format!("queue#shard{i}"))),
+                ])
+            })
+            .collect();
+
+        let keys_and_attrs = KeysAndAttributes::builder()
+            .set_keys(Some(keys))
+            .consistent_read(true)
+            .build()
+            .map_err(|e| AdminError::Message(e.to_string()))?;
+
+        let out = self
+            .client
+            .batch_get_item()
+            .request_items(&self.counters_table, keys_and_attrs)
+            .send()
+            .await
+            .map_err(|e| AdminError::Message(e.to_string()))?;
+
+        let items = out
+            .responses
+            .and_then(|mut r| r.remove(&self.counters_table));
+
+        let mut shards = vec![0u64; shard_count as usize];
+        if let Some(items) = items {
+            for item in items {
+                let counter_type = Self::get_s(&item, "counterType").unwrap_or_default();
+                if let Some(idx) = counter_type.strip_prefix("queue#shard") {
+                    if let Ok(i) = idx.parse::<usize>() {
+                        if i < shards.len() {
+                            shards[i] = Self::get_n_u64(&item, "value").unwrap_or(0);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(merge_counter_shards(&shards))
     }
 
     fn event_from_item(item: &HashMap<String, AttributeValue>) -> Result<EventConfig, AdminError> {
@@ -355,7 +408,7 @@ impl AdminStore for DynamoDbAdminStore {
             .map_err(|e| AdminError::Message(e.to_string()))?;
         let event = Self::event_from_item(&out.item.ok_or(AdminError::NotFound)?)?;
         let serving = self.get_counter(event_id, "serving").await?;
-        let queue_depth = self.get_counter(event_id, "queue#global").await?;
+        let queue_depth = self.sum_shard_counters(event_id).await?;
         let waiting = queue_depth.saturating_sub(serving);
         Ok(EventStats {
             event_id: event.event_id.clone(),

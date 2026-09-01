@@ -9,11 +9,13 @@ use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
 use chrono::Utc;
 use queue_kernel::{
-    adaptive_poll_interval_secs, assign_shard, estimate_wait_minutes, sign_admit_token,
-    BotProtectionMode, EventConfig, JwtKeys, QueueConfig, ShardPlan, VisitorRecord, VisitorStatus,
+    adaptive_poll_interval_secs, assign_shard, estimate_wait_minutes, merge_counter_shards,
+    sign_admit_token, BotProtectionMode, EventConfig, JwtKeys, QueueConfig, ShardPlan,
+    VisitorRecord, VisitorStatus,
 };
 use std::collections::HashMap;
 use std::env;
+use std::time::Duration;
 use uuid::Uuid;
 
 pub struct DynamoDbStore {
@@ -176,6 +178,68 @@ impl DynamoDbStore {
             .as_ref()
             .and_then(|i| Self::get_n_u64(i, "value"))
             .unwrap_or(0))
+    }
+
+    async fn sum_shard_counters(&self, event_id: &str) -> Result<u64, StoreError> {
+        use aws_sdk_dynamodb::types::KeysAndAttributes;
+
+        let shard_count = self.queue.counter_shards.max(1);
+        let keys: Vec<HashMap<String, AttributeValue>> = (0..shard_count)
+            .map(|i| {
+                HashMap::from([
+                    ("eventId".into(), Self::av_s(event_id)),
+                    ("counterType".into(), Self::av_s(format!("queue#shard{i}"))),
+                ])
+            })
+            .collect();
+
+        let keys_and_attrs = KeysAndAttributes::builder()
+            .set_keys(Some(keys))
+            .consistent_read(true)
+            .build()
+            .map_err(|e| StoreError::Message(e.to_string()))?;
+
+        let out = self
+            .client
+            .batch_get_item()
+            .request_items(&self.counters_table, keys_and_attrs)
+            .send()
+            .await
+            .map_err(|e| StoreError::Message(e.to_string()))?;
+
+        let items = out
+            .responses
+            .and_then(|mut r| r.remove(&self.counters_table));
+
+        let mut shards = vec![0u64; shard_count as usize];
+        if let Some(items) = items {
+            for item in items {
+                let counter_type = Self::get_s(&item, "counterType").unwrap_or_default();
+                if let Some(idx) = counter_type.strip_prefix("queue#shard") {
+                    if let Ok(i) = idx.parse::<usize>() {
+                        if i < shards.len() {
+                            shards[i] = Self::get_n_u64(&item, "value").unwrap_or(0);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(merge_counter_shards(&shards))
+    }
+
+    async fn put_visitor_item(
+        &self,
+        item: HashMap<String, AttributeValue>,
+    ) -> Result<(), StoreError> {
+        self.client
+            .put_item()
+            .table_name(&self.visitors_table)
+            .set_item(Some(item))
+            .send()
+            .await
+            .map_err(|e| StoreError::Message(e.to_string()))?;
+        Ok(())
     }
 
     async fn load_visitor(
@@ -347,7 +411,7 @@ impl QueueStore for DynamoDbStore {
     async fn event_stats(&self, tenant_id: &str, event_id: &str) -> Result<EventStats, StoreError> {
         let event = self.get_event(tenant_id, event_id).await?;
         let serving = self.get_counter(event_id, "serving").await?;
-        let queue_depth = self.get_counter(event_id, "queue#global").await?;
+        let queue_depth = self.sum_shard_counters(event_id).await?;
         let waiting = queue_depth.saturating_sub(serving);
         Ok(EventStats {
             event_id: event.event_id.clone(),
@@ -439,8 +503,6 @@ impl QueueStore for DynamoDbStore {
         let shard = assign_shard(&session_id, plan);
         let shard_key = format!("queue#shard{shard}");
         let _ = self.add_counter(&req.event_id, &shard_key, 1).await?;
-        // Atomic global FIFO position via ADD on queue#global.
-        let position = self.add_counter(&req.event_id, "queue#global", 1).await?;
 
         let request_id = req
             .request_id
@@ -450,26 +512,33 @@ impl QueueStore for DynamoDbStore {
         let enrolled_at = Utc::now().timestamp();
         let ttl = enrolled_at + (self.queue.visitor_record_ttl_hours as i64) * 3600;
         let return_url = req.return_url.or(event.return_url);
-        let mut item = HashMap::from([
-            ("eventId".into(), Self::av_s(&req.event_id)),
-            ("requestId".into(), Self::av_s(&request_id)),
-            ("sessionId".into(), Self::av_s(&session_id)),
-            ("position".into(), Self::av_n(position)),
-            ("shard".into(), Self::av_n(shard)),
-            ("status".into(), Self::av_s("waiting")),
-            ("enrolledAt".into(), Self::av_n(enrolled_at)),
-            ("ttl".into(), Self::av_n(ttl)),
-        ]);
-        if let Some(url) = &return_url {
-            item.insert("returnUrl".into(), Self::av_s(url));
+
+        let mut position = 0u64;
+        const MAX_ATTEMPTS: u32 = 3;
+        for attempt in 0..MAX_ATTEMPTS {
+            position = self.sum_shard_counters(&req.event_id).await?;
+            let mut item = HashMap::from([
+                ("eventId".into(), Self::av_s(&req.event_id)),
+                ("requestId".into(), Self::av_s(&request_id)),
+                ("sessionId".into(), Self::av_s(&session_id)),
+                ("position".into(), Self::av_n(position)),
+                ("shard".into(), Self::av_n(shard)),
+                ("status".into(), Self::av_s("waiting")),
+                ("enrolledAt".into(), Self::av_n(enrolled_at)),
+                ("ttl".into(), Self::av_n(ttl)),
+            ]);
+            if let Some(url) = &return_url {
+                item.insert("returnUrl".into(), Self::av_s(url));
+            }
+            match self.put_visitor_item(item).await {
+                Ok(()) => break,
+                Err(_e) if attempt + 1 < MAX_ATTEMPTS => {
+                    tokio::time::sleep(Duration::from_millis(10 * u64::from(attempt + 1))).await;
+                    continue;
+                }
+                Err(e) => return Err(e),
+            }
         }
-        self.client
-            .put_item()
-            .table_name(&self.visitors_table)
-            .set_item(Some(item))
-            .send()
-            .await
-            .map_err(|e| StoreError::Message(e.to_string()))?;
 
         Ok(EnrollResponse {
             request_id,

@@ -45,6 +45,7 @@ export class QueueControlPlane extends Construct {
         ROOMS_TABLE: tables.Rooms.tableName,
         EVENTS_TABLE: tables.Events.tableName,
         COUNTERS_TABLE: tables.Counters.tableName,
+        COUNTER_SHARDS: String(config.queue.counterShards),
         SIGNING_SECRET_ARN: signingSecret.secretArn,
       },
     });
