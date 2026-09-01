@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use queue_kernel::{
-    assign_shard, next_global_position, sign_admit_token, BotProtectionMode, EventConfig, JwtKeys,
+    assign_shard, merge_counter_shards, sign_admit_token, BotProtectionMode, EventConfig, JwtKeys,
     QueueConfig, ShardPlan, VisitorRecord, VisitorStatus,
 };
 use serde::{Deserialize, Serialize};
@@ -117,7 +117,7 @@ struct MemInner {
     events: HashMap<String, EventConfig>,
     visitors: HashMap<String, VisitorRecord>,
     session_index: HashMap<String, String>, // tenant|event|session -> request_id
-    queue_counter: HashMap<String, u64>,
+    shard_counters: HashMap<String, Vec<u64>>,
     serving_counter: HashMap<String, u64>,
     active_events: HashMap<String, String>, // tenant|room -> event_id
 }
@@ -141,6 +141,20 @@ impl InMemoryStore {
 
     fn room_key(tenant_id: &str, room_id: &str) -> String {
         format!("{tenant_id}|{room_id}")
+    }
+
+    fn init_shard_counters(g: &mut MemInner, ek: &str, shard_count: u32) {
+        let n = shard_count.max(1) as usize;
+        g.shard_counters
+            .entry(ek.to_string())
+            .or_insert_with(|| vec![0; n]);
+    }
+
+    fn sum_shard_counters(g: &MemInner, ek: &str) -> u64 {
+        g.shard_counters
+            .get(ek)
+            .map(|shards| merge_counter_shards(shards))
+            .unwrap_or(0)
     }
 
     pub async fn set_active_event(
@@ -174,7 +188,7 @@ impl QueueStore for InMemoryStore {
             .map_err(|e| StoreError::Message(e.to_string()))?;
         let key = Self::event_key(tenant_id, &event.event_id);
         g.events.insert(key.clone(), event);
-        g.queue_counter.entry(key.clone()).or_insert(0);
+        Self::init_shard_counters(&mut g, &key, self.queue.counter_shards);
         g.serving_counter.entry(key).or_insert(0);
         Ok(())
     }
@@ -226,7 +240,7 @@ impl QueueStore for InMemoryStore {
         let ek = Self::event_key(tenant_id, event_id);
         let event = g.events.get(&ek).cloned().ok_or(StoreError::NotFound)?;
         let serving = *g.serving_counter.get(&ek).unwrap_or(&0);
-        let queue_depth = *g.queue_counter.get(&ek).unwrap_or(&0);
+        let queue_depth = Self::sum_shard_counters(&g, &ek);
         let mut waiting = 0u64;
         let mut admitted = 0u64;
         for v in g.visitors.values() {
@@ -292,9 +306,14 @@ impl QueueStore for InMemoryStore {
 
         let plan = ShardPlan::new(self.queue.counter_shards);
         let shard = assign_shard(&session_id, plan);
-        let counter = g.queue_counter.entry(ek.clone()).or_insert(0);
-        *counter = next_global_position(*counter);
-        let position = *counter;
+        Self::init_shard_counters(&mut g, &ek, plan.shard_count);
+        let shards = g.shard_counters.get_mut(&ek).ok_or(StoreError::NotFound)?;
+        let shard_idx = shard as usize;
+        if shard_idx >= shards.len() {
+            return Err(StoreError::Message("shard index out of range".into()));
+        }
+        shards[shard_idx] = shards[shard_idx].saturating_add(1);
+        let position = merge_counter_shards(shards);
         let request_id = req
             .request_id
             .clone()
@@ -675,5 +694,49 @@ mod tests {
             .unwrap();
         assert_eq!(enrolled.request_id, "fixed-req");
         assert_eq!(enrolled.session_id, "s-fixed");
+    }
+
+    #[tokio::test]
+    async fn enroll_assigns_dense_positions() {
+        let store = InMemoryStore::new();
+        let keys = JwtKeys::from_hmac_secret(b"test-secret-key-32-bytes-long!!");
+        store
+            .ensure_event(
+                "t1",
+                EventConfig {
+                    event_id: "e1".into(),
+                    room_id: "r1".into(),
+                    throughput_per_minute: 60,
+                    paused: false,
+                    emergency_open: false,
+                    dress_rehearsal: false,
+                    bot_protection: BotProtectionMode::Off,
+                    return_url: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        let mut positions = Vec::new();
+        for i in 0..5 {
+            let enrolled = store
+                .enroll(
+                    "t1",
+                    EnrollRequest {
+                        event_id: "e1".into(),
+                        request_id: None,
+                        session_id: Some(format!("session-{i}")),
+                        return_url: None,
+                        turnstile_token: None,
+                    },
+                    &keys,
+                    false,
+                )
+                .await
+                .unwrap();
+            positions.push(enrolled.position);
+        }
+        positions.sort_unstable();
+        assert_eq!(positions, vec![1, 2, 3, 4, 5]);
     }
 }

@@ -13,9 +13,17 @@ Default region: **us-east-1**. All tables on-demand.
 
 - Visitors: GSI `bySession` — PK `eventId`, SK `sessionId` for idempotent enroll lookup.
 
-## Sharding
+## Sharding (enroll hot-key mitigation)
 
-`counterType = queue#shard{N}` for N in `0..counterShards-1`. Global position ≈ sum of shards or single logical counter advanced under conditional writes.
+`counterType = queue#shard{N}` for N in `0..counterShards-1`. On enroll:
+
+1. `ADD queue#shard{S}` where `S = hash(sessionId) % counterShards` (spreads writes across N counter items).
+2. `position = sum(queue#shard0..N)` via consistent `BatchGetItem` (dense 1..N positions).
+3. `PUT` visitor row with assigned `position`.
+
+Admin `event_stats` uses the same shard sum for `queue_depth`. Status polls read only the visitor row + `serving` (no shard sum).
+
+**Upgrade note:** Events that enrolled under the legacy `queue#global` counter must finish or be recreated before relying on shard-only positions. Mixing schemes mid-event can produce overlapping position numbers.
 
 ## TTL
 

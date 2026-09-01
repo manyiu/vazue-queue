@@ -50,4 +50,11 @@ mod tests {
     fn merge_sums() {
         assert_eq!(merge_counter_shards(&[1, 2, 3]), 6);
     }
+
+    #[test]
+    fn merge_eight_shard_counters_is_queue_depth() {
+        // Simulates ~375 enrolls per shard (3000 total).
+        let shards: Vec<u64> = (0..8).map(|_| 375).collect();
+        assert_eq!(merge_counter_shards(&shards), 3000);
+    }
 }
