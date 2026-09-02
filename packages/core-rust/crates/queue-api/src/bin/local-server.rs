@@ -1,4 +1,7 @@
-//! Dual local stack: queue API :3000 + admin API :3001 with shared in-memory events.
+//! Dual local stack: queue API :3000 + admin API :3001.
+//!
+//! Default: in-memory stores (`InMemoryStore`). Set `VAZUE_USE_DYNAMODB=1` to use
+//! `DynamoDbStore` against DynamoDB Local (see `scripts/local-with-dynamodb.sh`).
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -7,21 +10,49 @@ use admin_api::handlers::AdminState;
 use admin_api::{
     create_event, create_room, event_stats, export_event, get_capabilities, health as admin_health,
     list_events, list_rooms, ready as admin_ready, require_bearer, update_event, update_room,
-    AdminError, AdminStore, EventStats, InMemoryAdminStore, LiveOverrides, Room,
+    AdminError, AdminStore, DynamoDbAdminStore, EventStats, InMemoryAdminStore, LiveOverrides,
+    Room,
 };
 use async_trait::async_trait;
+use aws_config::BehaviorVersion;
 use axum::middleware;
 use axum::routing::{get, post, put};
 use axum::Router;
 use platform::Capabilities;
 use queue_api::{
-    active_event, admit, capabilities, enroll, health, ready, status, AppState, InMemoryStore,
-    QueueStore,
+    active_event, admit, aws_local, capabilities, enroll, health, ready, status, AppState,
+    DynamoDbStore, InMemoryStore, QueueStore,
 };
 use queue_kernel::EventConfig;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing::info;
+
+fn demo_event() -> EventConfig {
+    EventConfig {
+        event_id: "demo".into(),
+        room_id: "default".into(),
+        throughput_per_minute: 100,
+        paused: false,
+        emergency_open: false,
+        dress_rehearsal: false,
+        bot_protection: queue_kernel::BotProtectionMode::Off,
+        return_url: Some("https://example.com/checkout".into()),
+    }
+}
+
+fn demo_room() -> Room {
+    Room {
+        room_id: "default".into(),
+        name: "Default room".into(),
+        theme: serde_json::json!({
+            "brandName": "Vazue Queue",
+            "message": "You're in line. Please keep this tab open."
+        }),
+        queue: queue_kernel::QueueConfig::default(),
+        active_event_id: Some("demo".into()),
+    }
+}
 
 /// Admin store that mirrors event writes into the queue InMemoryStore.
 struct BridgedAdminStore {
@@ -124,6 +155,54 @@ impl AdminStore for BridgedAdminStore {
     }
 }
 
+async fn seed_demo_in_memory(queue_store: &Arc<InMemoryStore>, admin_store: &BridgedAdminStore) {
+    let demo = demo_event();
+    queue_store
+        .ensure_event("default", demo.clone())
+        .await
+        .expect("seed demo");
+    let _ = admin_store.create_room("default", demo_room()).await;
+    let _ = admin_store.create_event("default", demo).await;
+    let _ = queue_store
+        .set_active_event("default", "default", "demo")
+        .await;
+}
+
+async fn seed_demo_in_dynamodb(admin_store: &DynamoDbAdminStore, queue_store: &DynamoDbStore) {
+    if admin_store.get_room("default", "default").await.is_ok() {
+        return;
+    }
+    let demo = demo_event();
+    let _ = admin_store.create_room("default", demo_room()).await;
+    let _ = admin_store.create_event("default", demo.clone()).await;
+    let _ = queue_store.ensure_event("default", demo).await;
+}
+
+async fn build_stores(use_dynamodb: bool) -> (Arc<dyn QueueStore>, Arc<dyn AdminStore>) {
+    if use_dynamodb {
+        aws_local::apply_dynamodb_local_env_defaults();
+        let conf = aws_config::load_defaults(BehaviorVersion::latest()).await;
+        let ddb = aws_sdk_dynamodb::Client::new(&conf);
+        let queue_store = DynamoDbStore::from_env(ddb.clone())
+            .map_err(|e| format!("DynamoDbStore: {e}"))
+            .expect("DynamoDbStore");
+        let admin_store = DynamoDbAdminStore::from_env(ddb)
+            .map_err(|e| format!("DynamoDbAdminStore: {e}"))
+            .expect("DynamoDbAdminStore");
+        seed_demo_in_dynamodb(&admin_store, &queue_store).await;
+        (Arc::new(queue_store), Arc::new(admin_store))
+    } else {
+        let queue_store = Arc::new(InMemoryStore::new());
+        let bridged = BridgedAdminStore {
+            admin: InMemoryAdminStore::new(),
+            queue: queue_store.clone(),
+        };
+        seed_demo_in_memory(&queue_store, &bridged).await;
+        let admin_store: Arc<dyn AdminStore> = Arc::new(bridged);
+        (queue_store, admin_store)
+    }
+}
+
 #[tokio::main]
 async fn main() {
     std::env::set_var("VAZUE_LOCAL", "1");
@@ -134,45 +213,8 @@ async fn main() {
         )
         .try_init();
 
-    let queue_store = Arc::new(InMemoryStore::new());
-    let demo = EventConfig {
-        event_id: "demo".into(),
-        room_id: "default".into(),
-        throughput_per_minute: 100,
-        paused: false,
-        emergency_open: false,
-        dress_rehearsal: false,
-        bot_protection: queue_kernel::BotProtectionMode::Off,
-        return_url: Some("https://example.com/checkout".into()),
-    };
-    queue_store
-        .ensure_event("default", demo.clone())
-        .await
-        .expect("seed demo");
-
-    let admin_store = Arc::new(BridgedAdminStore {
-        admin: InMemoryAdminStore::new(),
-        queue: queue_store.clone(),
-    });
-    let _ = admin_store
-        .create_room(
-            "default",
-            Room {
-                room_id: "default".into(),
-                name: "Default room".into(),
-                theme: serde_json::json!({
-                    "brandName": "Vazue Queue",
-                    "message": "You're in line. Please keep this tab open."
-                }),
-                queue: queue_kernel::QueueConfig::default(),
-                active_event_id: None,
-            },
-        )
-        .await;
-    let _ = admin_store.create_event("default", demo).await;
-    let _ = queue_store
-        .set_active_event("default", "default", "demo")
-        .await;
+    let use_dynamodb = std::env::var("VAZUE_USE_DYNAMODB").ok().as_deref() == Some("1");
+    let (queue_store, admin_store) = build_stores(use_dynamodb).await;
 
     let queue_state = AppState::local(queue_store, b"local-dev-hmac-secret-change-me");
     let admin_state = AdminState {
@@ -209,8 +251,13 @@ async fn main() {
 
     let queue_addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     let admin_addr = SocketAddr::from(([0, 0, 0, 0], 3001));
-    info!("queue local-server http://{queue_addr}");
-    info!("admin local-server http://{admin_addr} (events sync into queue store)");
+    if use_dynamodb {
+        info!("queue local-server http://{queue_addr} (DynamoDB Local / DynamoDbStore)");
+        info!("admin local-server http://{admin_addr} (DynamoDB Local / DynamoDbAdminStore)");
+    } else {
+        info!("queue local-server http://{queue_addr} (in-memory)");
+        info!("admin local-server http://{admin_addr} (in-memory; events sync into queue store)");
+    }
 
     let queue_listener = tokio::net::TcpListener::bind(queue_addr).await.unwrap();
     let admin_listener = tokio::net::TcpListener::bind(admin_addr).await.unwrap();

@@ -1,5 +1,6 @@
 //! Queue data plane HTTP API.
 
+pub mod aws_local;
 pub mod dynamodb_store;
 pub mod handlers;
 pub mod lambda_runtime;

@@ -10,10 +10,20 @@
 ## Before every PR
 
 ```bash
-pnpm test:local
+pnpm test:local    # faster: unit tests + in-memory local-server smoke
 # or
-pnpm verify
+pnpm verify        # full gate (fmt, clippy, website build, all package tests)
 ```
+
+### Local testing workflow
+
+1. **Every change:** `pnpm verify` or `pnpm test:local`
+2. **API / UI:** `cargo run -p queue-api --bin local-server` (+ waiting room / admin dev servers)
+3. **SDK contract:** `bash scripts/sdk-smoke.sh` (with local-server running)
+4. **CDK / IAM:** `pnpm --filter @yiu/queue-cdk test`
+5. **Before release or infra deploy:** `bash scripts/deploy-smoke-standard.sh`
+
+Optional DynamoDB Local path (`DynamoDbStore`): `bash scripts/local-with-dynamodb.sh` or `bash scripts/test-dynamodb-local.sh`. See `apps/website/docs/getting-started/local-development.md`.
 
 Go/Java SDK tests: install toolchains, or locally use Docker helpers
 (`bash scripts/sdk-go-test.sh`, `bash scripts/sdk-java-test.sh`). CI always uses

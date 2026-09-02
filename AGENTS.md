@@ -21,7 +21,7 @@ Vazue Queue is an open source virtual waiting room on AWS. Publish only OSS pack
 | Node / pnpm / Rust | Native (or as you prefer) | `setup-node`, `dtolnay/rust-toolchain` |
 | Go / Java SDK tests | `bash scripts/sdk-*-test.sh` (Docker) if Go/JDK not installed | `actions/setup-go`, `actions/setup-java` — **never** Docker for these |
 | OpenAPI Generator stubs | `bash scripts/generate-sdks.sh` (Docker) | Same script (generator image only) |
-| DynamoDB Local | `docker compose -f docker-compose.local.yml up -d` | Not required for `local-server` (in-memory) |
+| DynamoDB Local | `docker compose -f docker-compose.local.yml up -d` + `bash scripts/bootstrap-dynamodb-local.sh` | Not required for `local-server` (in-memory default) |
 
 `scripts/verify.sh` refuses Docker fallbacks when `GITHUB_ACTIONS=true`.
 
@@ -32,8 +32,10 @@ pnpm install
 pnpm test:local    # mandatory before PR / deploy
 pnpm verify        # alias for agent stop condition
 docker compose -f docker-compose.local.yml up -d
+bash scripts/bootstrap-dynamodb-local.sh   # optional; for VAZUE_USE_DYNAMODB=1
 cargo run -p queue-api --bin local-server
-# queue :3000 + admin :3001 (shared in-memory events; ADMIN_DEV_AUTH=1)
+# queue :3000 + admin :3001 (in-memory default; ADMIN_DEV_AUTH=1)
+# DynamoDB Local: bash scripts/local-with-dynamodb.sh
 pnpm website:dev               # product site + docs (http://localhost:5190)
 pnpm website:build             # build for landing-cdk deploy
 pnpm website:preview           # preview production build (http://127.0.0.1:5200)

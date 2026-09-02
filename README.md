@@ -120,7 +120,9 @@ Develop in this monorepo:
 ```bash
 pnpm install
 docker compose -f docker-compose.local.yml up -d   # optional DynamoDB Local
+bash scripts/bootstrap-dynamodb-local.sh             # when using DynamoDB Local
 cargo run -p queue-api --bin local-server --manifest-path packages/core-rust/Cargo.toml
+# in-memory default; or: bash scripts/local-with-dynamodb.sh
 # queue :3000 + admin :3001 (ADMIN_DEV_AUTH=1)
 pnpm --filter @vazue/waiting-room dev
 pnpm website:dev   # product site + docs at http://localhost:5190
