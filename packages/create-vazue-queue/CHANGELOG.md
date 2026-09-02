@@ -1,5 +1,11 @@
 # create-vazue-queue
 
+## 1.0.3
+
+### Patch Changes
+
+- 1d8a0e3: Reject removed `features.stripe` config flag and drop `inviteOnly` from bot-protection schema after SaaS removal.
+
 ## 1.0.2
 
 ### Patch Changes

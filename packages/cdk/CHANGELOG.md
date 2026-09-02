@@ -1,5 +1,12 @@
 # @yiu/queue-cdk
 
+## 1.1.0
+
+### Minor Changes
+
+- e6c4ac9: Remove SaaS-only DynamoDB tables (Tenants, UsageDaily, Tokens), stripe feature flag, and VAZUE_DEPLOYMENT_PROFILE env var. Redeploy existing stacks to apply the CloudFormation change.
+- 1d8a0e3: Fix production waiting room defaults: same-origin API, baked `defaultEventId`, active-event lookup API, and edge redirect event param.
+
 ## 1.0.4
 
 ### Patch Changes

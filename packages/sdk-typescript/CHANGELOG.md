@@ -1,5 +1,11 @@
 # @yiu/queue-sdk
 
+## 2.0.0
+
+### Major Changes
+
+- 1d8a0e3: Remove `invite_code` from enroll request types and drop unused `dress_rehearsal` from admit JWT claim typings. OSS-only API contract.
+
 ## 1.0.1
 
 ### Patch Changes
