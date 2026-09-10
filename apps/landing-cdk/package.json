@@ -20,6 +20,6 @@
     "typescript": "^5.9.2",
     "ts-node": "^10.9.2",
     "@types/node": "^24.2.0",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.0"
   }
 }
